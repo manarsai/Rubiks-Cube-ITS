@@ -4,7 +4,13 @@
 #include <string>
 
 enum class Color {
-    YELLOW, RED, GREEN, ORANGE, BLUE, WHITE
+    UNKNOWN,
+    WHITE,
+    RED,
+    BLUE,
+    GREEN,
+    YELLOW,
+    ORANGE
 };
 
 enum class Face {

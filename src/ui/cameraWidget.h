@@ -16,8 +16,13 @@ public:
     void startCamera();
     void stopCamera();
 
+    std::array<Color, 9> captureFace();
+
 signals:
     void backRequested();
+
+signals:
+    void faceScanned(const std::array<Color, 9>& colors);
 
 private slots:
     void updateFrame();

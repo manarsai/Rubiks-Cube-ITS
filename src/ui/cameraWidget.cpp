@@ -36,6 +36,30 @@ void CameraWidget::updateFrame()
     if (frame.empty())
         return;
 
+    if (vision)
+    {
+        auto face = vision->getFaceColors();
+
+        bool valid = true;
+        for (auto c : face)
+        {
+            if (c == Color::WHITE) // or better: introduce UNKNOWN
+            {
+                valid = false;
+                break;
+            }
+        }
+
+        if (valid)
+            emit faceScanned(face);
+
+        // Only emit if valid (9 detected)
+        if (!face.empty())
+        {
+            emit faceScanned(face);
+        }
+    }
+
     cv::cvtColor(frame, frame, cv::COLOR_BGR2RGB);
 
     QImage img(frame.data, frame.cols, frame.rows,
@@ -67,3 +91,10 @@ void CameraWidget::stopCamera()
     clear(); // QLabel itself
 }
 
+std::array<Color, 9> CameraWidget::captureFace()
+{
+    if (!vision)
+        return {};
+
+    return vision->getFaceColors();
+}

@@ -4,6 +4,7 @@
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions>
 #include <vector>
+#include "../core/domain/Cube.h"
 
 class cubeView : public QOpenGLWidget, protected QOpenGLFunctions
 {
@@ -11,6 +12,7 @@ class cubeView : public QOpenGLWidget, protected QOpenGLFunctions
 
 public:
     explicit cubeView(QWidget* parent = nullptr);
+    //void setCubeState(const std::array<std::array<Color, 9>, 6>& state);
 
 protected:
     void initializeGL() override;
@@ -24,10 +26,15 @@ private:
     };
 
     std::vector<Cubie> cubies;
+    std::array<std::array<Color, 9>, 6> cubeState;
 
     void drawAllCubies();
     void drawUnitCube();
     void drawCubeEdges();
+
+ /*   QColor mapColor(Color c);*/
+
+    //void syncFromModel();
 
     float angleX;
     float angleY;

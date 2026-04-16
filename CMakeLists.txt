@@ -18,6 +18,8 @@ set(CMAKE_AUTOUIC ON)
 find_package(OpenCV REQUIRED)
 
 #sqlite
+find_package(SQLite3 REQUIRED)
+
 
 #src files
 file(GLOB_RECURSE SOURCES
@@ -25,7 +27,7 @@ file(GLOB_RECURSE SOURCES
     "${CMAKE_SOURCE_DIR}/src/vision/*.cpp"
 )
 
-add_executable(RUBIKSCUBE_ITS ${SOURCES} "app/main.cpp"     "src/vision/vision.cpp" "src/vision/vision.h"  "src/ui/MainWindow.cpp"  "src/core/domain/cubeState.h" "src/core/domain/cubeScanner.h" "src/ui/cameraWidget.cpp" "src/ui/cameraWidget.h" "src/ui/MainWindow.h"  "src/core/domain/Cube.cpp" "src/core/domain/Cube.h" "src/core/domain/Moves.h" "src/core/domain/Moves.cpp" "src/core/domain/Solver.h" "src/core/domain/Solver.cpp" "src/visual/cubeView.h" "src/visual/cubeView.cpp" "src/ui/Camerascreen.h" "src/ui/Camerascreen.cpp" "src/ui/CubeNet.h" "src/ui/CubeNet.cpp")
+add_executable(RUBIKSCUBE_ITS ${SOURCES} "app/main.cpp"     "src/vision/vision.cpp" "src/vision/vision.h"  "src/ui/MainWindow.cpp"    "src/ui/cameraWidget.cpp" "src/ui/cameraWidget.h" "src/ui/MainWindow.h"  "src/core/domain/Cube.cpp" "src/core/domain/Cube.h" "src/core/domain/Moves.h" "src/core/domain/Moves.cpp" "src/core/domain/Solver.h" "src/core/domain/Solver.cpp" "src/visual/cubeView.h" "src/visual/cubeView.cpp" "src/ui/Camerascreen.h" "src/ui/Camerascreen.cpp" "src/ui/CubeNet.h" "src/ui/CubeNet.cpp" "src/database/Database.h" "src/database/Database.cpp" "src/core/domain/CubeModel.h" "src/core/domain/CubeModel.cpp")
 
 #link libraries
 target_link_libraries(RUBIKSCUBE_ITS PRIVATE
@@ -34,6 +36,7 @@ target_link_libraries(RUBIKSCUBE_ITS PRIVATE
     Qt6::Widgets
     Qt6::OpenGLWidgets
     OpenGL::GL
+    SQLite::SQLite3
   
     ${OpenCV_LIBS}
 )

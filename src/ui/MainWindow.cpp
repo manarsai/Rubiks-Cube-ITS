@@ -1,64 +1,88 @@
 #include "MainWindow.h"
 #include "CameraWidget.h"
 #include "../visual/cubeView.h"
+#include "CubeNet.h"
 
 #include <QStackedWidget>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QWidget>
 #include <QApplication>
-#include "CubeNet.h"
+#include <QMessageBox>
+#include "../database/Database.h"
 
 MainWindow::MainWindow()
 {
-    // =========================
-    // STACK (screen manager)
-    // =========================
     stack = new QStackedWidget(this);
     setCentralWidget(stack);
 
+    setupStartScreen();
+    setupMainScreen();
+    setupCameraScreen();
+    applyStyles();
+    setupConnections();
 
-    qApp->setStyleSheet(
-        "QMainWindow {"
-        "   background: qlineargradient("
-        "       x1:0, y1:0, x2:0, y2:1,"
-        "       stop:0 #ffffff,"
-        "       stop:0.8 #ffffff,"
-        "       stop:1 #b3daff"
-        "   );"
-        "}"
+    if (!Database::getInstance().open())
+    {
+        QMessageBox::critical(this, "Error", "Database failed to open!");
+    }
+    else
+    {
+        Database::getInstance().initTables();
+    }
 
 
-    );
 
-    // START SCREEN
+
+    stack->addWidget(startScreen);
+    stack->addWidget(mainScreen);
+    stack->addWidget(cameraScreen);
+
+    stack->setCurrentWidget(startScreen);
+
+    resize(1000, 600);
+}
+
+MainWindow::~MainWindow()
+{
+    Database::getInstance().close();
+}
+
+// =========================
+// SETUP SCREENS
+// =========================
+
+void MainWindow::setupStartScreen()
+{
     startScreen = new QWidget();
-    QHBoxLayout* startLayout = new QHBoxLayout(startScreen);
+    startScreen->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-    // =========================
-    // LEFT PANEL (navigation)
-    // =========================
-    QWidget* navPanel = new QWidget();
+    QHBoxLayout* rootLayout = new QHBoxLayout(startScreen);
+    rootLayout->setContentsMargins(0, 0, 0, 0);
+    rootLayout->setSpacing(0);
+
+    // ---- NAV PANEL ----
+    QWidget* navPanel = new QWidget(startScreen);
     QVBoxLayout* navLayout = new QVBoxLayout(navPanel);
 
-    QPushButton* newButton = new QPushButton("New");
-    QPushButton* continueButton = new QPushButton("Continue");
-    QPushButton* settingsButton = new QPushButton("Settings");
-    QPushButton* exitButton = new QPushButton("Exit");
+    newButton = new QPushButton("New");
+    continueButton = new QPushButton("Continue");
+    settingsButton = new QPushButton("Settings");
+    exitButton = new QPushButton("Exit");
 
     QString style =
         "QPushButton {"
-        "   background: transparent;"
-        "   color: black;"
-        "   border-radius: 10px;"
-        "   padding: 10px;"
-        "   font-size: 28px;"
+        " background: transparent;"
+        " color: black;"
+        " border-radius: 10px;"
+        " padding: 10px;"
+        " font-size: 28px;"
         "}"
         "QPushButton:hover {"
-        "   color: #81b0de;"
+        " color: #81b0de;"
         "}";
 
-    // apply to all
     newButton->setStyleSheet(style);
     continueButton->setStyleSheet(style);
     settingsButton->setStyleSheet(style);
@@ -73,117 +97,211 @@ MainWindow::MainWindow()
 
     navPanel->setFixedWidth(200);
 
-
-    // =========================
-    // RIGHT PANEL (cube)
-    // =========================
-    cubeStart = new cubeView();
-    cubeStart->setMinimumSize(200, 200);
-    cubeStart->setMaximumSize(300, 300);
-
-    // optional: make cube expand nicely
+    // ---- CUBE ----
+    cubeStart = new cubeView(startScreen);
     cubeStart->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-
-    // =========================
-    // ADD TO MAIN LAYOUT
-    // =========================
-    startLayout->addWidget(navPanel);   // LEFT
-    startLayout->addWidget(cubeStart);  // RIGHT
-
-
-
-
-    // MAIN SCREEN
-    mainScreen = new QWidget();
-    mainScreen = new QWidget();
-
-    QVBoxLayout* mainLayout = new QVBoxLayout(mainScreen);
-
-    mainLayout->setContentsMargins(10, 10, 10, 10);
-    mainLayout->setSpacing(10);
-
-    // =========================
-    // TOP (CUBE AREA)
-    // =========================
-    QWidget* topPanel = new QWidget();
-    QHBoxLayout* topLayout = new QHBoxLayout(topPanel);
-
-    // LEFT SPACER (small)
-    topLayout->addSpacing(30);
-
-    // CUBE
-    cubeMain = new cubeView();
-    cubeMain->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    cubeMain->setMinimumWidth(350);
-    cubeMain->setMaximumWidth(600);
-
-    topLayout->addWidget(cubeMain);
-
-    // RIGHT STRETCH (pushes slightly left, but not extreme)
-    topLayout->addStretch();
- 
-    // =========================
-    // BOTTOM (SCAN AREA)
-    // =========================
-    QWidget* bottomPanel = new QWidget();
-    QHBoxLayout* bottomLayout = new QHBoxLayout(bottomPanel);
-
-    QPushButton* scanButton = new QPushButton("Scan Cube");
-    scanButton->setFixedHeight(50);
-
-    // optional alignment
-    bottomLayout->addWidget(scanButton);
-    bottomLayout->addStretch();
-
-    // =========================
-    // ADD TO MAIN LAYOUT
-    // =========================
-    mainLayout->addWidget(cubeMain, 5);     // BIG TOP AREA
-    mainLayout->addWidget(bottomPanel, 1);  // SMALL BOTTOM AREA
-
-
-    // CAMERA SCREEN
-    QWidget* cameraScreen = new QWidget();
-    QHBoxLayout* layout = new QHBoxLayout(cameraScreen);
-
-    // create widgets
-    cameraWidget = new CameraWidget();
-    CubeNet* grid = new CubeNet();
-
-    // add to layout
-    layout->addWidget(cameraWidget, 3); // LEFT (bigger)
-    layout->addWidget(grid, 2);         // RIGHT (smaller)
+    //cubeStart->setMinimumSize(200, 200); 
+     cubeStart->setMaximumSize(300, 300);
 
     
+    rootLayout->addWidget(navPanel, 0);
+    rootLayout->addWidget(cubeStart, 1);
+}
+
+void MainWindow::setupMainScreen()
+{
+    mainScreen = new QWidget();
+    QVBoxLayout* layout = new QVBoxLayout(mainScreen);
+
+    cubeMain = new cubeView(mainScreen);
+
+    scanButton = new QPushButton("Scan Cube");
+    scanButton->setFixedHeight(50);
+
+    backButtonmain = new QPushButton("Back");
+
+    layout->addWidget(cubeMain, 5);
+    layout->addWidget(scanButton, 1);
+    layout->addWidget(backButtonmain, 1);
+}
+
+void MainWindow::setupCameraScreen()
+{
+    cameraScreen = new QWidget();
+    QVBoxLayout* mainLayout = new QVBoxLayout(cameraScreen);
+
+    QHBoxLayout* topBar = new QHBoxLayout();
+
+    backButton = new QPushButton("Back");
+    scanFaceButton = new QPushButton("Scan Face");
+
+    topBar->addWidget(backButton);
+    topBar->addWidget(scanFaceButton);
+    topBar->addStretch();
+
+    QHBoxLayout* contentLayout = new QHBoxLayout();
+
+    cameraWidget = new CameraWidget(cameraScreen);
+    grid = new CubeNet(cameraScreen);
+
+    contentLayout->addWidget(cameraWidget, 3);
+    contentLayout->addWidget(grid, 2);
+
+    mainLayout->addLayout(topBar);
+    mainLayout->addLayout(contentLayout);
+
+    currentFace = 0;
+}
+
+// =========================
+// LOGIC
+// =========================
+
+bool MainWindow::isValidFace(const std::array<Color, 9>& face)
+{
+    for (auto c : face)
+    {
+        if (c == Color::UNKNOWN)
+            return false;
+    }
+    return true;
+}
+
+void MainWindow::handleScan()
+{
+    if (currentFace >= 6)
+        return;
+
+    auto face = cameraWidget->captureFace();
+
+    if (!isValidFace(face))
+        return;
+
+    grid->setFaceColors(currentFace, face);
+
+    currentFace++;
+
+    Database::getInstance().saveSession(
+        currentFace,
+        grid->serializeState()
+    );
+
+    continueButton->setVisible(true);
+
+    if (currentFace == 6)
+    {
+        bool ok = grid->validateCube();
+
+        if (!ok)
+        {
+            QMessageBox::warning(this, "Invalid Cube",
+                "Cube scan is invalid!\nEach color must appear exactly 9 times.");
+        }
+        else
+        {
+            QMessageBox::information(this, "Success",
+                "Cube scanned correctly!");
+
+        }
+
+     /*   cubeMain->setCubeState(grid->getCubeState());*/
+        scanFaceButton->setEnabled(false);
+        scanFaceButton->setText("Done");
+    }
 
 
-    // ADD SCREENS TO STACK
-    stack->addWidget(startScreen);   // 0
-    stack->addWidget(mainScreen);    // 1
-    stack->addWidget(cameraScreen);
+}
 
-    stack->setCurrentWidget(startScreen);
+void MainWindow::resetScan()
+{
+    currentFace = 0;
+    scanFaceButton->setEnabled(true);
+    scanFaceButton->setText("Scan Face");
+}
 
-    // NAVIGATION
-    // START ? MAIN
-    connect(newButton, &QPushButton::clicked, this, [=]() {
+// =========================
+// CONNECTIONS
+// =========================
+
+void MainWindow::setupConnections()
+{
+    connect(newButton, &QPushButton::clicked, this, [this]() {
+
+        Database::getInstance().resetSession();
+
+        continueButton->setVisible(false); // ?? IMPORTANT
+
+        resetScan();
         stack->setCurrentWidget(mainScreen);
         });
 
     connect(exitButton, &QPushButton::clicked, qApp, &QApplication::quit);
 
-
-    // MAIN ? CAMERA
-    connect(scanButton, &QPushButton::clicked, this, [=]() {
+    connect(scanButton, &QPushButton::clicked, this, [this]() {
         stack->setCurrentWidget(cameraScreen);
         cameraWidget->startCamera();
+        resetScan();
         });
 
-    // CAMERA ? MAIN
-    connect(cameraWidget, &CameraWidget::backRequested, this, [=]() {
+    connect(backButton, &QPushButton::clicked, this, [this]() {
         cameraWidget->stopCamera();
         stack->setCurrentWidget(mainScreen);
         });
 
-    resize(1000, 600);
+    connect(scanFaceButton, &QPushButton::clicked, this, [this]() {
+        handleScan();
+        });
+
+    connect(backButtonmain, &QPushButton::clicked, this, [this]() {
+        stack->setCurrentWidget(startScreen);
+        });
+
+    connect(continueButton, &QPushButton::clicked, this, [this]() {
+
+        int face = 0;
+        std::string state;
+
+        if (Database::getInstance().loadSession(face, state))
+        {
+            currentFace = face;
+            grid->restoreState(state);
+        }
+
+        stack->setCurrentWidget(mainScreen);
+        });
+}
+
+void MainWindow::applyStyles()
+{
+    QString buttonStyle =
+        "QPushButton {"
+        "   background: transparent;"
+        "   color: black;"
+        "   border-radius: 10px;"
+        "   padding: 10px;"
+        "   font-size: 28px;"
+        "}"
+        "QPushButton:hover {"
+        "   color: #81b0de;"
+        "}";
+
+    qApp->setStyleSheet(
+        "QMainWindow {"
+        "   background: qlineargradient("
+        "       x1:0, y1:0, x2:0, y2:1,"
+        "       stop:0 #ffffff,"
+        "       stop:0.8 #ffffff,"
+        "       stop:1 #b3daff"
+        "   );"
+        "}"
+    );
+
+    newButton->setStyleSheet(buttonStyle);
+    continueButton->setStyleSheet(buttonStyle);
+    settingsButton->setStyleSheet(buttonStyle);
+    exitButton->setStyleSheet(buttonStyle);
+
+    scanButton->setStyleSheet(buttonStyle);
+    scanFaceButton->setStyleSheet(buttonStyle);
+    backButton->setStyleSheet(buttonStyle);
 }

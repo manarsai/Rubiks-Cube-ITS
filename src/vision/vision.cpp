@@ -422,7 +422,10 @@ std::array<Color, 9> Vision::getFaceColors()
     std::array<Color, 9> face;
 
     if (lastDetectedFace.size() != 9)
-        throw std::runtime_error("Face not detected properly");
+    {
+        std::array<Color, 9> empty{};
+        return empty;
+    }
 
     for (int i = 0; i < 9; i++)
         face[i] = convertToCubeColor(lastDetectedFace[i].colour);
