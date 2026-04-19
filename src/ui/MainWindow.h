@@ -69,5 +69,5 @@ private:
     // =========================
     void handleScan();
     void resetScan();
-    bool isValidFace(const std::array<Color, 9>& face);
+    bool isValidFace(const std::array<Colour, 9>& face);
 };

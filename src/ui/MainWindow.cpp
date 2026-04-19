@@ -97,7 +97,7 @@ void MainWindow::setupStartScreen()
 
     navPanel->setFixedWidth(200);
 
-    // ---- CUBE ----
+    // CUBE 
     cubeStart = new cubeView(startScreen);
     cubeStart->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     //cubeStart->setMinimumSize(200, 200); 
@@ -153,15 +153,14 @@ void MainWindow::setupCameraScreen()
     currentFace = 0;
 }
 
-// =========================
-// LOGIC
-// =========================
 
-bool MainWindow::isValidFace(const std::array<Color, 9>& face)
+// LOGIC
+
+bool MainWindow::isValidFace(const std::array<Colour, 9>& face)
 {
     for (auto c : face)
     {
-        if (c == Color::UNKNOWN)
+        if (c == Colour::UNKNOWN)
             return false;
     }
     return true;
@@ -177,7 +176,7 @@ void MainWindow::handleScan()
     if (!isValidFace(face))
         return;
 
-    grid->setFaceColors(currentFace, face);
+    grid->setFaceColours(currentFace, face);
 
     currentFace++;
 
@@ -229,7 +228,7 @@ void MainWindow::setupConnections()
 
         Database::getInstance().resetSession();
 
-        continueButton->setVisible(false); // ?? IMPORTANT
+        continueButton->setVisible(false); 
 
         resetScan();
         stack->setCurrentWidget(mainScreen);

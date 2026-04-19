@@ -26,7 +26,7 @@ private:
     };
 
     std::vector<Cubie> cubies;
-    std::array<std::array<Color, 9>, 6> cubeState;
+    std::array<std::array<Colour, 9>, 6> cubeState;
 
     void drawAllCubies();
     void drawUnitCube();

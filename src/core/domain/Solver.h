@@ -6,5 +6,5 @@
 class Solver {
 public:
     std::vector<std::string> solveWhiteCross(const Cube& cube);
-    int heuristic(const std::array<Color, 54>& s);
+    int heuristic(const std::array<Colour, 54>& s);
 };

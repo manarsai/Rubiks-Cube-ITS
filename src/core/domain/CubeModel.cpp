@@ -6,7 +6,7 @@ CubeModel& CubeModel::get()
     return instance;
 }
 
-void CubeModel::setFace(int faceIndex, const std::array<Color, 9>& face)
+void CubeModel::setFace(int faceIndex, const std::array<Colour, 9>& face)
 {
     if (faceIndex < 0 || faceIndex >= 6)
         return;
@@ -15,7 +15,7 @@ void CubeModel::setFace(int faceIndex, const std::array<Color, 9>& face)
     filled[faceIndex] = true;
 }
 
-const std::array<std::array<Color, 9>, 6>& CubeModel::getFaces() const
+const std::array<std::array<Colour, 9>, 6>& CubeModel::getFaces() const
 {
     return faces;
 }
@@ -26,7 +26,7 @@ void CubeModel::reset()
     {
         filled[i] = false;
         for (int j = 0; j < 9; j++)
-            faces[i][j] = Color::UNKNOWN;
+            faces[i][j] = Colour::UNKNOWN;
     }
 }
 

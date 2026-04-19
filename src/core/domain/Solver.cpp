@@ -8,7 +8,7 @@
 
 // node
 struct Node {
-    std::array<Color, 54> state{};
+    std::array<Colour, 54> state{};
     int g = 0;
     int h = 0;
     std::vector<std::string> path;
@@ -22,20 +22,20 @@ struct Compare {
 };
 
 // solved state
-std::array<Color, 54> solvedState = []() {
+std::array<Colour, 54> solvedState = []() {
     Cube c;
     return c.getState();
     }();
 
 //goal test
-bool isSolved(const std::array<Color, 54>& s) {
+bool isSolved(const std::array<Colour, 54>& s) {
     for (int i = 0; i < 54; i++)
         if (s[i] != solvedState[i]) return false;
     return true;
 }
 
 // placeholder heuristic
-int Solver::heuristic(const std::array<Color, 54>& s)
+int Solver::heuristic(const std::array<Colour, 54>& s)
 {
     int h = 0;
 
@@ -48,11 +48,11 @@ int Solver::heuristic(const std::array<Color, 54>& s)
 
 // apply a move
 // perm[i] is where sticker i is coming from
-std::array<Color, 54> applyMove(
-    const std::array<Color, 54>& state,
+std::array<Colour, 54> applyMove(
+    const std::array<Colour, 54>& state,
     const std::array<int, 54>& perm
 ) {
-    std::array<Color, 54> next;
+    std::array<Colour, 54> next;
 
     for (int i = 0; i < 54; i++) {
         next[i] = state[perm[i]];

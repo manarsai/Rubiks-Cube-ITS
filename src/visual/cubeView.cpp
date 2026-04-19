@@ -25,7 +25,7 @@ cubeView::cubeView(QWidget* parent)
         update();
         });
 
-   /* timer->start(16);*/
+    //timer->start(16);
 }
 
 void cubeView::initializeGL()
@@ -89,6 +89,17 @@ void cubeView::drawAllCubies()
         glPopMatrix();
     }
 }
+
+
+//Yellow(Top face) -> 0 - 8
+//Blue(Left face) -> 9 - 17
+//Red(Front face) -> 18 - 26
+//Green(Right face) -> 27 - 35
+//Orange(Back face) -> 36 - 44
+//White(Down face) -> 45 - 53
+//
+//Total: 9 x 6 = 54 squares
+
 
 void cubeView::drawUnitCube()
 {

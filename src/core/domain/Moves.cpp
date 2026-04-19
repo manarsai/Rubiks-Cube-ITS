@@ -2,14 +2,14 @@
 #include <array>
 #include <vector>
 
-// -------------------- Identity --------------------
+// Identity 
 static std::array<int, 54> makeIdentity() {
     std::array<int, 54> p{};
     for (int i = 0; i < 54; i++) p[i] = i;
     return p;
 }
 
-// helper: apply cycle (i0 i1 i2 i3) means i0->i1->i2->i3->i0
+// helper, apply cycle (i0 i1 i2 i3) means i0->i1->i2->i3->i0
 static void addCycle(std::array<int, 54>& p, std::vector<int> c) {
     for (int i = 0; i < c.size(); i++) {
         p[c[i]] = c[(i + 1) % c.size()];

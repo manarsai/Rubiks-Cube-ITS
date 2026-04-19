@@ -23,12 +23,12 @@ Cube::Cube() {
 // RESET
 // ===============================
 void Cube::reset() {
-    for (int i = 0; i < 9; i++)  state[i] = Color::YELLOW; // U
-    for (int i = 9; i < 18; i++) state[i] = Color::BLUE;   // L
-    for (int i = 18; i < 27; i++) state[i] = Color::RED;   // F
-    for (int i = 27; i < 36; i++) state[i] = Color::GREEN; // R
-    for (int i = 36; i < 45; i++) state[i] = Color::ORANGE; // B
-    for (int i = 45; i < 54; i++) state[i] = Color::WHITE;  // D
+    for (int i = 0; i < 9; i++)  state[i] = Colour::YELLOW; // U
+    for (int i = 9; i < 18; i++) state[i] = Colour::BLUE;   // L
+    for (int i = 18; i < 27; i++) state[i] = Colour::RED;   // F
+    for (int i = 27; i < 36; i++) state[i] = Colour::GREEN; // R
+    for (int i = 36; i < 45; i++) state[i] = Colour::ORANGE; // B
+    for (int i = 45; i < 54; i++) state[i] = Colour::WHITE;  // D
 
 }
 
@@ -36,7 +36,7 @@ void Cube::reset() {
 // MOVE APPLICATION
 // ===============================
 void Cube::applyMove(const Move& m) {
-    std::array<Color, 54> newState;
+    std::array<Colour, 54> newState;
 
     for (int i = 0; i < 54; i++) {
         newState[i] = state[m.perm[i]];
@@ -48,11 +48,11 @@ void Cube::applyMove(const Move& m) {
 // ===============================
 // GET / SET STATE
 // ===============================
-const std::array<Color, 54>& Cube::getState() const {
+const std::array<Colour, 54>& Cube::getState() const {
     return state;
 }
 
-void Cube::setState(const std::array<Color, 54>& newState) {
+void Cube::setState(const std::array<Colour, 54>& newState) {
     state = newState;
 }
 
@@ -61,7 +61,7 @@ void Cube::setState(const std::array<Color, 54>& newState) {
 // ===============================
 void Cube::print() const {
     for (int i = 0; i < 54; i++) {
-        std::cout << colorToString(state[i]) << " ";
+        std::cout << colourToString(state[i]) << " ";
 
         if ((i + 1) % 3 == 0) std::cout << "\n";
         if ((i + 1) % 9 == 0) std::cout << "\n";
@@ -71,14 +71,14 @@ void Cube::print() const {
 // ===============================
 // COLOR STRING
 // ===============================
-std::string Cube::colorToString(Color c) {
+std::string Cube::colourToString(Colour c) {
     switch (c) {
-    case Color::WHITE:  return "W";
-    case Color::RED:    return "R";
-    case Color::BLUE:   return "B";
-    case Color::YELLOW: return "Y";
-    case Color::ORANGE: return "O";
-    case Color::GREEN:  return "G";
+    case Colour::WHITE:  return "W";
+    case Colour::RED:    return "R";
+    case Colour::BLUE:   return "B";
+    case Colour::YELLOW: return "Y";
+    case Colour::ORANGE: return "O";
+    case Colour::GREEN:  return "G";
     default:            return "?";
     }
 }
@@ -88,7 +88,7 @@ std::string Cube::colorToString(Color c) {
 // =====================================================
 
 
-void Cube::setFace(Face face, const std::array<Color, 9>& faceColors)
+void Cube::setFace(Face face, const std::array<Colour, 9>& faceColors)
 {
     int offset = static_cast<int>(face) * 9;
 

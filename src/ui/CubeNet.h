@@ -12,9 +12,9 @@ public:
     bool validateCube() const;
 
     // ?? NEW: specify which face
-    void setFaceColors(int faceIndex, const std::array<Color, 9>& colors);
+    void setFaceColours(int faceIndex, const std::array<Colour, 9>& colors);
 
-    const std::array<std::array<Color, 9>, 6>& getCubeState() const;
+    const std::array<std::array<Colour, 9>, 6>& getCubeState() const;
 
     std::string serializeState();
     void restoreState(const std::string& state);
@@ -25,7 +25,7 @@ protected:
 
 private:
     // ?? store ALL 6 faces
-    std::array<std::array<Color, 9>, 6> cubeFaces = {};
+    std::array<std::array<Colour, 9>, 6> cubeFaces = {};
     // track which faces are filled
     std::array<bool, 6> faceFilled = { false, false, false, false, false, false };
 };

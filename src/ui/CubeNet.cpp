@@ -47,12 +47,12 @@ void CubeNet::paintEvent(QPaintEvent*)
 
                     switch (CubeModel::get().getFaces()[faceIndex][index])
                     {
-                    case Color::WHITE:  qcolor = Qt::white; break;
-                    case Color::RED:    qcolor = Qt::red; break;
-                    case Color::BLUE:   qcolor = Qt::blue; break;
-                    case Color::GREEN:  qcolor = Qt::green; break;
-                    case Color::YELLOW: qcolor = Qt::yellow; break;
-                    case Color::ORANGE: qcolor = QColor(255, 165, 0); break;
+                    case Colour::WHITE:  qcolor = Qt::white; break;
+                    case Colour::RED:    qcolor = Qt::red; break;
+                    case Colour::BLUE:   qcolor = Qt::blue; break;
+                    case Colour::GREEN:  qcolor = Qt::green; break;
+                    case Colour::YELLOW: qcolor = Qt::yellow; break;
+                    case Colour::ORANGE: qcolor = QColor(255, 165, 0); break;
                     default: qcolor = Qt::gray; break;
                     }
                 }
@@ -83,7 +83,7 @@ void CubeNet::paintEvent(QPaintEvent*)
 //     [5]
 
     drawFace(x(0), y(0), 0); // TOP
-    drawFace(x(0), y(1), 1); // FRONT (or whatever order you choose)
+    drawFace(x(0), y(1), 1); // FRONT
 
     drawFace(x(-1), y(2), 2); // LEFT
     drawFace(x(0), y(2), 3); // CENTER
@@ -92,7 +92,7 @@ void CubeNet::paintEvent(QPaintEvent*)
     drawFace(x(0), y(3), 5); // BOTTOM
 }
 
-void CubeNet::setFaceColors(int faceIndex, const std::array<Color, 9>& colors)
+void CubeNet::setFaceColours(int faceIndex, const std::array<Colour, 9>& colors)
 {
     if (faceIndex < 0 || faceIndex >= 6)
         return;
@@ -106,15 +106,15 @@ void CubeNet::setFaceColors(int faceIndex, const std::array<Color, 9>& colors)
 
 bool CubeNet::validateCube() const
 {
-    std::map<Color, int> counts;
+    std::map<Colour, int> counts;
 
     // init counts
-    counts[Color::WHITE] = 0;
-    counts[Color::RED] = 0;
-    counts[Color::BLUE] = 0;
-    counts[Color::GREEN] = 0;
-    counts[Color::YELLOW] = 0;
-    counts[Color::ORANGE] = 0;
+    counts[Colour::WHITE] = 0;
+    counts[Colour::RED] = 0;
+    counts[Colour::BLUE] = 0;
+    counts[Colour::GREEN] = 0;
+    counts[Colour::YELLOW] = 0;
+    counts[Colour::ORANGE] = 0;
 
     // count all stickers
     for (int f = 0; f < 6; f++)
@@ -124,9 +124,9 @@ bool CubeNet::validateCube() const
 
         for (int i = 0; i < 9; i++)
         {
-            Color c = cubeFaces[f][i];
+            Colour c = cubeFaces[f][i];
 
-            if (c == Color::UNKNOWN)
+            if (c == Colour::UNKNOWN)
                 return false;
 
             if (counts.find(c) == counts.end())
@@ -135,18 +135,18 @@ bool CubeNet::validateCube() const
             counts[c]++;
         }
     }
-    //// each color must appear exactly 9 times
-    //for (const auto& [color, count] : counts)
-    //{
-    //    if (count != 9)
-    //        return false;
-    //}
+    // each colour must appear exactly 9 times
+    for (const auto& [colour, count] : counts)
+    {
+        if (count != 9)
+            return false;
+    }
 
     return true;
 }
 
 
-const std::array<std::array<Color, 9>, 6>& CubeNet::getCubeState() const
+const std::array<std::array<Colour, 9>, 6>& CubeNet::getCubeState() const
 {
     return cubeFaces;
 }
@@ -187,7 +187,7 @@ void CubeNet::restoreState(const std::string& state)
 
         while (std::getline(faceStream, cell, ',') && i < 9)
         {
-            cubeFaces[f][i] = static_cast<Color>(std::stoi(cell));
+            cubeFaces[f][i] = static_cast<Colour>(std::stoi(cell));
             i++;
         }
 
@@ -206,7 +206,7 @@ void CubeNet::reset()
 
         for (int i = 0; i < 9; i++)
         {
-            cubeFaces[f][i] = Color::UNKNOWN;
+            cubeFaces[f][i] = Colour::UNKNOWN;
         }
     }
 

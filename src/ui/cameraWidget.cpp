@@ -15,16 +15,6 @@ CameraWidget::CameraWidget(QWidget* parent)
     // =========================
     timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &CameraWidget::updateFrame);
-
-    // =========================
-    // Back button
-    // =========================
-    QPushButton* backButton = new QPushButton("Back", this);
-    backButton->move(10, 10);
-
-    connect(backButton, &QPushButton::clicked, this, [this]() {
-        emit backRequested();
-        });
 }
 
 void CameraWidget::updateFrame()
@@ -38,12 +28,12 @@ void CameraWidget::updateFrame()
 
     if (vision)
     {
-        auto face = vision->getFaceColors();
+        auto face = vision->getFaceColours();
 
         bool valid = true;
         for (auto c : face)
         {
-            if (c == Color::WHITE) // or better: introduce UNKNOWN
+            if (c == Colour::WHITE) // or better: introduce UNKNOWN
             {
                 valid = false;
                 break;
@@ -91,10 +81,10 @@ void CameraWidget::stopCamera()
     clear(); // QLabel itself
 }
 
-std::array<Color, 9> CameraWidget::captureFace()
+std::array<Colour, 9> CameraWidget::captureFace()
 {
     if (!vision)
         return {};
 
-    return vision->getFaceColors();
+    return vision->getFaceColours();
 }
