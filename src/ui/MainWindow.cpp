@@ -12,6 +12,8 @@
 #include <QHBoxLayout>
 #include <QMessageBox>
 #include <QApplication>
+#include <QLabel>
+#include "Styles.h"
 
 
 
@@ -39,8 +41,9 @@ MainWindow::MainWindow()
     setupStartScreen();
     setupMainScreen();
     setupCameraScreen();
-    applyStyles();
     setupConnections();
+
+    Styles::apply();
 
     Database::getInstance().open();
     Database::getInstance().initTables();
@@ -69,22 +72,39 @@ void MainWindow::setupStartScreen()
     startScreen = new QWidget();
 
     QHBoxLayout* root = new QHBoxLayout(startScreen);
+    root->setContentsMargins(20, 20, 20, 20);
+    root->setSpacing(30);
 
     QWidget* nav = new QWidget();
     QVBoxLayout* navLayout = new QVBoxLayout(nav);
+    navLayout->setSpacing(10);
+
+    QLabel* navLabel = new QLabel("RUBIK'S ITS");
+    navLabel->setAlignment(Qt::AlignCenter);
+    navLabel->setObjectName("navLabel");
 
     newButton = new QPushButton("New");
     continueButton = new QPushButton("Continue");
     exitButton = new QPushButton("Exit");
 
+    newButton->setObjectName("newButton");
+    continueButton->setObjectName("continueButton");
+    exitButton->setObjectName("exitButton");
+
+    navLayout->addStretch();
+    navLayout->addWidget(navLabel);
     navLayout->addWidget(newButton);
     navLayout->addWidget(continueButton);
     navLayout->addWidget(exitButton);
+    navLayout->addStretch();
 
     cubeStart = new cubeView(startScreen);
+    cubeStart->setFixedSize(300, 300);
 
+    root->addStretch();
     root->addWidget(nav);
     root->addWidget(cubeStart);
+    root->addStretch();
 }
 
 
@@ -92,16 +112,45 @@ void MainWindow::setupStartScreen()
 void MainWindow::setupMainScreen()
 {
     mainScreen = new QWidget();
-    QVBoxLayout* layout = new QVBoxLayout(mainScreen);
+
+    QGridLayout* layout = new QGridLayout(mainScreen);
+    layout->setContentsMargins(20, 20, 20, 20);
+    layout->setSpacing(15);
 
     cubeMain = new cubeView(mainScreen);
 
     scanButton = new QPushButton("Scan Cube");
     backButtonmain = new QPushButton("Back");
 
-    layout->addWidget(cubeMain);
-    layout->addWidget(scanButton);
-    layout->addWidget(backButtonmain);
+    scanButton->setObjectName("scanButton");
+    backButtonmain->setObjectName("backButtonMain");
+
+    // Bottom-left container (group buttons)
+    QWidget* bottomLeftContainer = new QWidget();
+    QVBoxLayout* bottomLeftLayout = new QVBoxLayout(bottomLeftContainer);
+    bottomLeftLayout->setContentsMargins(0, 0, 0, 0);
+    bottomLeftLayout->setSpacing(10);
+
+    bottomLeftLayout->addWidget(scanButton);
+    bottomLeftLayout->addWidget(backButtonmain);
+    bottomLeftLayout->addStretch();
+
+    // Placeholders
+    QWidget* topRight = new QWidget();
+    QWidget* bottomRight = new QWidget();
+
+    // Grid placement (true 2x2)
+    layout->addWidget(cubeMain, 0, 0);              // top-left
+    layout->addWidget(topRight, 0, 1);              // top-right
+    layout->addWidget(bottomLeftContainer, 1, 0);   // bottom-left
+    layout->addWidget(bottomRight, 1, 1);           // bottom-right
+
+    // ? sizing: top bigger than bottom
+    layout->setRowStretch(0, 3);
+    layout->setRowStretch(1, 1);
+
+    layout->setColumnStretch(0, 1);
+    layout->setColumnStretch(1, 1);
 }
 
 
@@ -117,12 +166,15 @@ void MainWindow::setupCameraScreen()
     backButton = new QPushButton("Back");
     scanFaceButton = new QPushButton("Scan Face");
 
+    // ? OBJECT NAMES
+    backButton->setObjectName("backButton");
+    scanFaceButton->setObjectName("scanFaceButton");
+
     topBar->addWidget(backButton);
     topBar->addWidget(scanFaceButton);
 
     cameraWidget = new CameraWidget(cameraScreen);
-
-    grid = new CubeNet(*cube, cameraScreen); // ? SAME CUBE
+    grid = new CubeNet(*cube, cameraScreen);
 
     content->addWidget(cameraWidget, 3);
     content->addWidget(grid, 2);
@@ -259,36 +311,3 @@ void MainWindow::setupConnections()
         });
 }
 
-void MainWindow::applyStyles()
-{
-    QString buttonStyle =
-        "QPushButton {"
-        "   background: transparent;"
-        "   color: black;"
-        "   border-radius: 10px;"
-        "   padding: 10px;"
-        "   font-size: 28px;"
-        "}"
-        "QPushButton:hover {"
-        "   color: #81b0de;"
-        "}";
-
-    qApp->setStyleSheet(
-        "QMainWindow {"
-        "   background: qlineargradient("
-        "       x1:0, y1:0, x2:0, y2:1,"
-        "       stop:0 #ffffff,"
-        "       stop:1 #b3daff"
-        "   );"
-        "}"
-    );
-
-    newButton->setStyleSheet(buttonStyle);
-    continueButton->setStyleSheet(buttonStyle);
-    exitButton->setStyleSheet(buttonStyle);
-
-    scanButton->setStyleSheet(buttonStyle);
-    scanFaceButton->setStyleSheet(buttonStyle);
-    backButton->setStyleSheet(buttonStyle);
-    backButtonmain->setStyleSheet(buttonStyle);
-}

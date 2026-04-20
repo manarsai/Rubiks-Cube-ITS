@@ -25,7 +25,7 @@ cubeView::cubeView(QWidget* parent)
         update();
         });
 
-    //timer->start(16);
+    timer->start(16);
 }
 
 void cubeView::initializeGL()

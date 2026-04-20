@@ -2,6 +2,7 @@
 
 enum class Stage
 {
+	SCRAMBLED,
 	WHITE_CROSS,
 	F2L,
 	OLL,
