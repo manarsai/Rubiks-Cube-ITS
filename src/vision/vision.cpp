@@ -3,19 +3,24 @@
 #include <stdexcept>
 #include "../core/domain/Cube.h"
 
+
+// open the camera
 Vision::Vision(int cameraIndex)
 {
     cap.open(cameraIndex);
 }
 
+// free the camera when the object is destroyed
 Vision::~Vision()
 {
     if (cap.isOpened())
         cap.release();
 }
 
+
 cv::Mat Vision::getProcessedFrame()
 {
+    // if the camera fails, return empty im age
     if (!cap.isOpened())
         return cv::Mat();
 
@@ -23,26 +28,28 @@ cv::Mat Vision::getProcessedFrame()
     if (frame.empty())
         return cv::Mat();
 
-    // 1. Preprocessing
+    // preprocessing
     cv::Mat edges = processor.process(frame);
     cv::Mat cleanEdges = processor.getEdges();
 
-    // 2. Detect squares
+    // detect squares
     std::vector<std::vector<cv::Point>> squares =
         detector.detect(cleanEdges);
 
     lastContours = squares;
 
-    // 3. Display setup
+    // display setup
     cv::Mat display;
     frame.copyTo(display);
 
+    // draw contours 
     cv::drawContours(display, squares, -1,
         cv::Scalar(0, 0, 255), 2);
 
-    // 4. Classification
+    // colour classification
     std::vector<DetectedSquare> detected;
 
+    // loop over each square
     for (const auto& square : squares)
     {
         cv::Rect r = cv::boundingRect(square);
@@ -61,6 +68,7 @@ cv::Mat Vision::getProcessedFrame()
 
         detected.push_back({ center, colour });
 
+        // label colour
         std::string text = classifier.toString(colour);
 
         cv::putText(display, text,
@@ -71,11 +79,13 @@ cv::Mat Vision::getProcessedFrame()
             1);
     }
 
-    // 5. Face building
+    // form the squares into a cube face
     if (detected.size() == 9)
     {
+     
         detected = faceBuilder.sortFace(detected);
 
+        // sort squares in order
         for (int i = 0; i < 9; i++)
         {
             cv::putText(display,

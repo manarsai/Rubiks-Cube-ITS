@@ -1,42 +1,44 @@
 #pragma once
 #include <array>
+#include <vector>
 
-struct Move {
+// =========================
+// MOVE STRUCTURE
+// =========================
+struct Moves {
     std::array<int, 54> perm;
 
-    // composition: apply b first, then a
-    friend Move operator*(const Move& a, const Move& b) {
-        Move result{};
-
-        for (int i = 0; i < 54; ++i) {
-            result.perm[i] = a.perm[b.perm[i]];
-        }
-
-        return result;
+    Moves inverse() const {
+        Moves inv{};
+        for (int i = 0; i < 54; ++i)
+            inv.perm[perm[i]] = i;
+        return inv;
     }
 
-    Move inverse() const {
-        Move inv{};
-        for (int i = 0; i < 54; ++i) {
-            inv.perm[perm[i]] = i;
-        }
-        return inv;
+    friend Moves operator*(const Moves& a, const Moves& b) {
+        Moves result{};
+        for (int i = 0; i < 54; ++i)
+            result.perm[i] = a.perm[b.perm[i]];
+        return result;
     }
 };
 
-inline bool isIdentity(const Move& m) {
-    for (int i = 0; i < 54; ++i) {
+inline bool isIdentity(const Moves& m)
+{
+    for (int i = 0; i < 54; ++i)
         if (m.perm[i] != i) return false;
-    }
     return true;
 }
 
-extern const Move U;
-extern const Move R;
-extern const Move F;
-extern const Move B;
+// =========================
+// MOVES
+// =========================
+extern const Moves U;
+extern const Moves R;
+extern const Moves F;
+extern const Moves B;
 
-extern const Move U_prime;
-extern const Move R_prime;
-extern const Move F_prime;
-extern const Move B_prime;
+extern const Moves U_prime;
+extern const Moves R_prime;
+extern const Moves F_prime;
+extern const Moves B_prime;

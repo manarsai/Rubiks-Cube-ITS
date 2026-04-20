@@ -1,46 +1,80 @@
 #pragma once
-
 #include <array>
 #include <string>
 
+// =========================
+// Colour system
+// =========================
 enum class Colour {
-    UNKNOWN,
-    WHITE,
-    RED,
-    BLUE,
-    GREEN,
-    YELLOW,
-    ORANGE
+    WHITE, RED, BLUE, GREEN, YELLOW, ORANGE, UNKNOWN
 };
 
-enum class Face {
-    Up,
-    Down,
-    Left,
-    Right,
-    Front,
-    Back
+// =========================
+// Move (unchanged for now)
+// =========================
+struct Move {
+    std::array<int, 54> perm;
 };
 
-struct Move;
+// =========================
+// Face indexing system
+// =========================
+enum Face {
+    UP = 0,
+    LEFT,
+    FRONT,
+    RIGHT,
+    BACK,
+    DOWN
+};
 
-class Cube {
+// =========================
+// Cube
+// =========================
+class Cube
+{
 private:
     std::array<Colour, 54> state;
 
+    // =========================
+    // Core mapping function
+    // =========================
+    static constexpr int idx(int face, int row, int col)
+    {
+        return face * 9 + row * 3 + col;
+    }
+
 public:
     Cube();
-
     void reset();
-    void applyMove(const Move& m);
 
+    // =========================
+    // State access
+    // =========================
     const std::array<Colour, 54>& getState() const;
     void setState(const std::array<Colour, 54>& newState);
 
-    // ? THIS is the ONLY scanning function you need
-    void setFace(Face face, const std::array<Colour, 9>& faceColors);
+    // =========================
+    // Face access (UI + scanner)
+    // =========================
+    std::array<Colour, 9> getFace(int face) const;
+    void setFace(int face, const std::array<Colour, 9>& faceColors);
 
-    void print() const;
+    // Optional cleaner access (VERY useful later)
+    Colour& at(int face, int row, int col);
+    const Colour& at(int face, int row, int col) const;
+
+    // =========================
+    // Moves
+    // =========================
+    void applyMove(const Move& m);
+
+    // =========================
+    // Utility
+    // =========================
+    bool isSolved() const;
+    std::string serialize() const;
+    void deserialize(const std::string& str);
 
     static std::string colourToString(Colour c);
 };

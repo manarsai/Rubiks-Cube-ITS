@@ -1,99 +1,171 @@
 #include "Cube.h"
-#include "Moves.h"
-#include <iostream>
-#include <stdexcept>
-#include "../../vision/vision.h"
+#include <sstream>
 
-/*
-Cube indexing:
-
-0–8   = Up (Yellow)
-9–17  = Left (Blue)
-18–26 = Front (Red)
-27–35 = Right (Green)
-36–44 = Back (Orange)
-45–53 = Down (White)
-*/
-
-Cube::Cube() {
+// =========================
+// Constructor
+// =========================
+Cube::Cube()
+{
     reset();
 }
 
-// ===============================
-// RESET
-// ===============================
-void Cube::reset() {
-    for (int i = 0; i < 9; i++)  state[i] = Colour::YELLOW; // U
-    for (int i = 9; i < 18; i++) state[i] = Colour::BLUE;   // L
-    for (int i = 18; i < 27; i++) state[i] = Colour::RED;   // F
-    for (int i = 27; i < 36; i++) state[i] = Colour::GREEN; // R
-    for (int i = 36; i < 45; i++) state[i] = Colour::ORANGE; // B
-    for (int i = 45; i < 54; i++) state[i] = Colour::WHITE;  // D
+// =========================
+// Reset (clean + explicit)
+// =========================
+void Cube::reset()
+{
+    for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++)
+            state[idx(UP, r, c)] = Colour::YELLOW;
 
+    for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++)
+            state[idx(LEFT, r, c)] = Colour::BLUE;
+
+    for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++)
+            state[idx(FRONT, r, c)] = Colour::RED;
+
+    for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++)
+            state[idx(RIGHT, r, c)] = Colour::GREEN;
+
+    for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++)
+            state[idx(BACK, r, c)] = Colour::ORANGE;
+
+    for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++)
+            state[idx(DOWN, r, c)] = Colour::WHITE;
 }
 
-// ===============================
-// MOVE APPLICATION
-// ===============================
-void Cube::applyMove(const Move& m) {
-    std::array<Colour, 54> newState;
-
-    for (int i = 0; i < 54; i++) {
-        newState[i] = state[m.perm[i]];
-    }
-
-    state = newState;
-}
-
-// ===============================
-// GET / SET STATE
-// ===============================
-const std::array<Colour, 54>& Cube::getState() const {
+// =========================
+// State access
+// =========================
+const std::array<Colour, 54>& Cube::getState() const
+{
     return state;
 }
 
-void Cube::setState(const std::array<Colour, 54>& newState) {
+void Cube::setState(const std::array<Colour, 54>& newState)
+{
     state = newState;
 }
 
-// ===============================
-// PRINT (DEBUG)
-// ===============================
-void Cube::print() const {
-    for (int i = 0; i < 54; i++) {
-        std::cout << colourToString(state[i]) << " ";
+// =========================
+// NEW: coordinate access
+// =========================
+Colour& Cube::at(int face, int row, int col)
+{
+    return state[idx(face, row, col)];
+}
 
-        if ((i + 1) % 3 == 0) std::cout << "\n";
-        if ((i + 1) % 9 == 0) std::cout << "\n";
+const Colour& Cube::at(int face, int row, int col) const
+{
+    return state[idx(face, row, col)];
+}
+
+// =========================
+// Face access (scanner + UI)
+// =========================
+std::array<Colour, 9> Cube::getFace(int face) const
+{
+    std::array<Colour, 9> result{};
+    int i = 0;
+
+    for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++)
+            result[i++] = state[idx(face, r, c)];
+
+    return result;
+}
+
+void Cube::setFace(int face, const std::array<Colour, 9>& faceColors)
+{
+    int i = 0;
+
+    for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++)
+            state[idx(face, r, c)] = faceColors[i++];
+}
+
+// =========================
+// Moves (unchanged for now)
+// =========================
+void Cube::applyMove(const Move& m)
+{
+    std::array<Colour, 54> newState;
+
+    for (int i = 0; i < 54; i++)
+        newState[i] = state[m.perm[i]];
+
+    state = newState;
+}
+
+// =========================
+// Solved check
+// =========================
+bool Cube::isSolved() const
+{
+    for (int f = 0; f < 6; f++)
+    {
+        Colour center = state[idx(f, 1, 1)];
+
+        for (int r = 0; r < 3; r++)
+            for (int c = 0; c < 3; c++)
+                if (state[idx(f, r, c)] != center)
+                    return false;
+    }
+
+    return true;
+}
+
+// =========================
+// Serialize
+// =========================
+std::string Cube::serialize() const
+{
+    std::ostringstream out;
+
+    for (int i = 0; i < 54; i++)
+    {
+        out << static_cast<int>(state[i]);
+        if (i < 53) out << ",";
+    }
+
+    return out.str();
+}
+
+// =========================
+// Deserialize
+// =========================
+void Cube::deserialize(const std::string& str)
+{
+    std::istringstream ss(str);
+    std::string val;
+
+    int i = 0;
+
+    while (std::getline(ss, val, ',') && i < 54)
+    {
+        state[i] = static_cast<Colour>(std::stoi(val));
+        i++;
     }
 }
 
-// ===============================
-// COLOR STRING
-// ===============================
-std::string Cube::colourToString(Colour c) {
-    switch (c) {
+// =========================
+// Colour helper
+// =========================
+std::string Cube::colourToString(Colour c)
+{
+    switch (c)
+    {
     case Colour::WHITE:  return "W";
     case Colour::RED:    return "R";
     case Colour::BLUE:   return "B";
     case Colour::YELLOW: return "Y";
-    case Colour::ORANGE: return "O";
     case Colour::GREEN:  return "G";
-    default:            return "?";
-    }
-}
-
-// =====================================================
-// ?? SCANNING SUPPORT (NEW ADDITIONS)
-// =====================================================
-
-
-void Cube::setFace(Face face, const std::array<Colour, 9>& faceColors)
-{
-    int offset = static_cast<int>(face) * 9;
-
-    for (int i = 0; i < 9; i++)
-    {
-        state[offset + i] = faceColors[i];
+    case Colour::ORANGE: return "O";
+    default:              return "?";
     }
 }

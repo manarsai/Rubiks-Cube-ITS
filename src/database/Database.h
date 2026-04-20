@@ -1,6 +1,6 @@
 #pragma once
-#include <sqlite3.h>
 #include <string>
+#include <sqlite3.h>
 
 class Database
 {
@@ -10,17 +10,17 @@ public:
     bool open();
     void close();
 
-    bool hasSession();
-
     void initTables();
 
     void saveSession(int face, const std::string& cubeState);
     bool loadSession(int& face, std::string& cubeState);
+
     void resetSession();
-
-
+    bool hasSession();
 
 private:
     Database() = default;
+    ~Database() = default;
+
     sqlite3* db = nullptr;
 };

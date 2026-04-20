@@ -1,9 +1,10 @@
 #pragma once
 
 #include <QMainWindow>
-#include <vector>
+#include <array>
 #include "../core/domain/Cube.h"
 
+// Forward declarations
 class QStackedWidget;
 class QWidget;
 class QPushButton;
@@ -11,7 +12,8 @@ class CameraWidget;
 class cubeView;
 class CubeNet;
 
-class MainWindow : public QMainWindow {
+class MainWindow : public QMainWindow
+{
     Q_OBJECT
 
 public:
@@ -20,43 +22,44 @@ public:
 
 private:
     // =========================
+    // CORE STATE (SINGLE SOURCE OF TRUTH)
+    // =========================
+    Cube* cube = nullptr;   // ? safer initialization
+
+    int currentFace = 0;    // ? safe default
+
+    // =========================
     // UI STACK
     // =========================
-    QStackedWidget* stack;
+    QStackedWidget* stack = nullptr;
 
-    // Screens
-    QWidget* startScreen;
-    QWidget* mainScreen;
-    QWidget* cameraScreen;
+    QWidget* startScreen = nullptr;
+    QWidget* mainScreen = nullptr;
+    QWidget* cameraScreen = nullptr;
 
     // =========================
     // WIDGETS
     // =========================
-    CameraWidget* cameraWidget;
-    cubeView* cubeStart;
-    cubeView* cubeMain;
-    CubeNet* grid;
-
-    // Buttons
-    QPushButton* newButton;
-    QPushButton* continueButton;
-    QPushButton* settingsButton;
-    QPushButton* exitButton;
-
-    QPushButton* scanButton;
-    QPushButton* backButtonmain;
-    QPushButton* backButton;
-    QPushButton* scanFaceButton;
-
-
+    CameraWidget* cameraWidget = nullptr;
+    cubeView* cubeStart = nullptr;
+    cubeView* cubeMain = nullptr;
+    CubeNet* grid = nullptr;
 
     // =========================
-    // STATE
+    // BUTTONS
     // =========================
-    int currentFace;
+    QPushButton* newButton = nullptr;
+    QPushButton* continueButton = nullptr;
+    QPushButton* settingsButton = nullptr;
+    QPushButton* exitButton = nullptr;
+
+    QPushButton* scanButton = nullptr;
+    QPushButton* backButtonmain = nullptr;
+    QPushButton* backButton = nullptr;
+    QPushButton* scanFaceButton = nullptr;
 
     // =========================
-    // SETUP METHODS
+    // SETUP
     // =========================
     void setupStartScreen();
     void setupMainScreen();
