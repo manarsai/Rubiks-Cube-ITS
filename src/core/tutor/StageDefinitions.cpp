@@ -1,9 +1,8 @@
 #include "StageDefinitions.h"
 #include <iostream>
 
-// =====================================================
+
 // WHITE CROSS CHECK (TUTOR-GRADE + STD::COUT DEBUG)
-// =====================================================
 static bool isWhiteCrossComplete(const Cube& cube)
 {
     const auto& s = cube.getState();
@@ -12,9 +11,7 @@ static bool isWhiteCrossComplete(const Cube& cube)
     std::cout << "WHITE CROSS CHECK START\n";
     std::cout << "==============================\n";
 
-    // ===============================
     // CENTERS (reference colours)
-    // ===============================
     Colour leftCenter = s[13];
     Colour frontCenter = s[22];
     Colour rightCenter = s[31];
@@ -35,9 +32,7 @@ static bool isWhiteCrossComplete(const Cube& cube)
         return false;
     }
 
-    // ===============================
     // EDGE DEFINITIONS
-    // ===============================
     struct Edge
     {
         const char* name;
@@ -86,9 +81,8 @@ static bool isWhiteCrossComplete(const Cube& cube)
     return true;
 }
 
-// =====================================================
+
 // STAGE DEFINITIONS
-// =====================================================
 static StageDefinition WHITE_CROSS_STAGE =
 {
     Stage::WHITE_CROSS,
@@ -117,9 +111,7 @@ static StageDefinition PLL_STAGE =
     nullptr
 };
 
-// =====================================================
 // LOOKUP
-// =====================================================
 namespace StageDefinitions
 {
     const StageDefinition& get(Stage stage)

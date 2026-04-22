@@ -11,8 +11,7 @@ class cubeView : public QOpenGLWidget, protected QOpenGLFunctions
     Q_OBJECT
 
 public:
-    explicit cubeView(QWidget* parent = nullptr);
-    //void setCubeState(const std::array<std::array<Color, 9>, 6>& state);
+    explicit cubeView(Cube& cubeModel, QWidget* parent = nullptr);
 
 protected:
     void initializeGL() override;
@@ -20,24 +19,26 @@ protected:
     void paintGL() override;
 
 private:
-    // ?? Represents one small cube
-    struct Cubie {
-        int x, y, z; // position in cube (-1, 0, 1)
+    Cube& cube;
+
+    struct Cubie
+    {
+        int x, y, z;
     };
 
     std::vector<Cubie> cubies;
-    std::array<std::array<Colour, 9>, 6> cubeState;
-
-    void drawAllCubies();
-    void drawUnitCube();
-    void drawCubeEdges();
-
- /*   QColor mapColor(Color c);*/
-
-    //void syncFromModel();
 
     float angleX;
     float angleY;
+
+    void drawAllCubies();
+    void drawCubie(const Cubie& c);
+    void drawCubeEdges();
+
+    QColor convertColour(Colour c);
+
+    // ?? safety helper
+    Colour safeAt(int face, int row, int col);
 };
 
-#endif // CUBEVIEW_H
+#endif

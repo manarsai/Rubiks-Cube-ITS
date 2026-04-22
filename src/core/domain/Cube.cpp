@@ -57,9 +57,16 @@ void Cube::setState(const std::array<Colour, 54>& newState)
 // =========================
 Colour& Cube::at(int face, int row, int col)
 {
+    if (face < 0 || face > 5 ||
+        row < 0 || row > 2 ||
+        col < 0 || col > 2)
+    {
+        static Colour dummy = Colour::UNKNOWN;
+        return dummy; // prevents crash
+    }
+
     return state[idx(face, row, col)];
 }
-
 const Colour& Cube::at(int face, int row, int col) const
 {
     return state[idx(face, row, col)];

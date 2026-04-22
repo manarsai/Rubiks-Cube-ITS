@@ -3,15 +3,22 @@
 #include <QMainWindow>
 #include <array>
 #include "../core/domain/Cube.h"
+#include <QLabel>
 
-// Forward declarations
+// =========================
+// FORWARD DECLARATIONS
+// =========================
 class QStackedWidget;
 class QWidget;
 class QPushButton;
 class CameraWidget;
 class cubeView;
 class CubeNet;
+class ProgressWheel;   // ? Progress wheel added
 
+// =========================
+// MAIN WINDOW
+// =========================
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -22,11 +29,10 @@ public:
 
 private:
     // =========================
-    // CORE STATE (SINGLE SOURCE OF TRUTH)
+    // CORE STATE
     // =========================
-    Cube* cube = nullptr;   // ? safer initialization
-
-    int currentFace = 0;    // ? safe default
+    Cube* cube = nullptr;
+    int currentFace = 0;
 
     // =========================
     // UI STACK
@@ -36,6 +42,8 @@ private:
     QWidget* startScreen = nullptr;
     QWidget* mainScreen = nullptr;
     QWidget* cameraScreen = nullptr;
+    QLabel* scanInstruction;
+    QStringList scanSteps;
 
     // =========================
     // WIDGETS
@@ -44,6 +52,7 @@ private:
     cubeView* cubeStart = nullptr;
     cubeView* cubeMain = nullptr;
     CubeNet* grid = nullptr;
+    ProgressWheel* progressWheel = nullptr;   // ? progress wheel
 
     // =========================
     // BUTTONS

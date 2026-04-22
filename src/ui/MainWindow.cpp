@@ -14,13 +14,19 @@
 #include <QApplication>
 #include <QLabel>
 #include "Styles.h"
+#include "../visual/StagePreviews.h"
+#include <qprogressbar.h>
+
+
 
 
 
 // CONSTRUCTOR
 MainWindow::MainWindow()
 {
-
+    // =========================
+    // DATABASE INIT (ONCE)
+    // =========================
     bool ok = Database::getInstance().open();
 
     if (!ok)
@@ -33,11 +39,37 @@ MainWindow::MainWindow()
         Database::getInstance().initTables();
     }
 
-    cube = new Cube(); // ? SINGLE SOURCE OF TRUTH
+    // =========================
+    // CUBE (LOAD EARLY STATE)
+    // =========================
+    cube = new Cube();
 
+    int face = 0;
+    std::string state;
+
+    // Try to restore last session immediately
+    if (Database::getInstance().loadSession(face, state))
+    {
+        cube->deserialize(state);
+        currentFace = face;
+        qDebug() << "? SESSION LOADED AT STARTUP";
+    }
+    else
+    {
+        cube->reset();
+        currentFace = 0;
+        qDebug() << "? NO SESSION FOUND - USING SOLVED CUBE";
+    }
+
+    // =========================
+    // STACK SETUP
+    // =========================
     stack = new QStackedWidget(this);
     setCentralWidget(stack);
 
+    // =========================
+    // UI SETUP (NOW USES LOADED CUBE)
+    // =========================
     setupStartScreen();
     setupMainScreen();
     setupCameraScreen();
@@ -45,16 +77,26 @@ MainWindow::MainWindow()
 
     Styles::apply();
 
-    Database::getInstance().open();
-    Database::getInstance().initTables();
-
+    // =========================
+    // ADD SCREENS
+    // =========================
     stack->addWidget(startScreen);
     stack->addWidget(mainScreen);
     stack->addWidget(cameraScreen);
 
     stack->setCurrentWidget(startScreen);
 
-    resize(1000, 600);
+    // =========================
+    // FORCE INITIAL SYNC
+    // =========================
+    if (cubeStart) cubeStart->update();
+    if (cubeMain) cubeMain->update();
+    if (grid) grid->update();
+
+    // =========================
+    // FULLSCREEN
+    // =========================
+    showFullScreen();
 }
 
 
@@ -98,7 +140,7 @@ void MainWindow::setupStartScreen()
     navLayout->addWidget(exitButton);
     navLayout->addStretch();
 
-    cubeStart = new cubeView(startScreen);
+    cubeStart = new cubeView(*cube, startScreen);
     cubeStart->setFixedSize(300, 300);
 
     root->addStretch();
@@ -108,51 +150,139 @@ void MainWindow::setupStartScreen()
 }
 
 
-// MAIN SCREEN
 void MainWindow::setupMainScreen()
 {
     mainScreen = new QWidget();
 
     QGridLayout* layout = new QGridLayout(mainScreen);
-    layout->setContentsMargins(20, 20, 20, 20);
-    layout->setSpacing(15);
 
-    cubeMain = new cubeView(mainScreen);
+    // =========================
+    // STAGE PROGRESS BAR (NEW TOP UI)
+    // =========================
+    QProgressBar* stageBar = new QProgressBar(mainScreen);
+    stageBar->setObjectName("stageBar");
+    stageBar->setRange(0, 5); // Cross, F2L, OLL, PLL
+    stageBar->setValue(1);    // current stage (example)
+    stageBar->setTextVisible(true);
+    stageBar->setFormat("Stage %v / %m");
+    stageBar->setFixedHeight(40);
 
+    layout->addWidget(stageBar, 0, 0, 1, 2);
+
+    // =========================
+    // TOP LEFT (CUBE)
+    // =========================
+    cubeMain = new cubeView(*cube, mainScreen);
+
+    QWidget* topRight = new QWidget();
+
+    // =========================
+    // BUTTONS
+    // =========================
     scanButton = new QPushButton("Scan Cube");
-    backButtonmain = new QPushButton("Back");
+    backButtonmain = new QPushButton("Pause");
 
     scanButton->setObjectName("scanButton");
     backButtonmain->setObjectName("backButtonMain");
 
-    // Bottom-left container (group buttons)
-    QWidget* bottomLeftContainer = new QWidget();
-    QVBoxLayout* bottomLeftLayout = new QVBoxLayout(bottomLeftContainer);
-    bottomLeftLayout->setContentsMargins(0, 0, 0, 0);
-    bottomLeftLayout->setSpacing(10);
+    QPushButton* btn3 = new QPushButton("Retry Stage");
+    QPushButton* btn4 = new QPushButton("Metrics");
 
-    bottomLeftLayout->addWidget(scanButton);
-    bottomLeftLayout->addWidget(backButtonmain);
-    bottomLeftLayout->addStretch();
+    btn3->setObjectName("RetryButton");
+    btn4->setObjectName("MetricButton");
 
-    // Placeholders
-    QWidget* topRight = new QWidget();
+    QWidget* bottomLeft = new QWidget();
+    QVBoxLayout* leftLayout = new QVBoxLayout(bottomLeft);
+    leftLayout->setSpacing(5);
+    leftLayout->addWidget(scanButton);
+    leftLayout->addWidget(backButtonmain);
+
+    QWidget* rightCol = new QWidget();
+    QVBoxLayout* rightLayoutCol = new QVBoxLayout(rightCol);
+    rightLayoutCol->setSpacing(5);
+    rightLayoutCol->addWidget(btn3);
+    rightLayoutCol->addWidget(btn4);
+
+    QWidget* bottomButtonsRow = new QWidget();
+    QHBoxLayout* bottomButtonsLayout = new QHBoxLayout(bottomButtonsRow);
+    bottomButtonsLayout->setContentsMargins(0, 0, 0, 0);
+    bottomButtonsLayout->setSpacing(20);
+    bottomButtonsLayout->addWidget(bottomLeft);
+    bottomButtonsLayout->addWidget(rightCol);
+
+    // =========================
+    // PREVIEWS
+    // =========================
+    QWidget* previewContainer = new QWidget();
+    QHBoxLayout* previewLayout = new QHBoxLayout(previewContainer);
+    previewLayout->setSpacing(10);
+
+    QStringList stages = {
+        "WWWWWWWWW",
+        "GGGGGGGGG",
+        "RRRRRRRRR"
+    };
+
+    for (const QString& state : stages)
+    {
+        QLabel* preview = new QLabel();
+        preview->setPixmap(StagePreviews::createFaceImage(state));
+        preview->setFixedSize(100, 100);
+        preview->setScaledContents(true);
+        preview->setAlignment(Qt::AlignCenter);
+        previewLayout->addWidget(preview);
+    }
+
     QWidget* bottomRight = new QWidget();
+    QVBoxLayout* rightLayout = new QVBoxLayout(bottomRight);
 
-    // Grid placement (true 2x2)
-    layout->addWidget(cubeMain, 0, 0);              // top-left
-    layout->addWidget(topRight, 0, 1);              // top-right
-    layout->addWidget(bottomLeftContainer, 1, 0);   // bottom-left
-    layout->addWidget(bottomRight, 1, 1);           // bottom-right
+    QLabel* title = new QLabel("Goal");
+    title->setAlignment(Qt::AlignCenter);
 
-    // ? sizing: top bigger than bottom
-    layout->setRowStretch(0, 3);
-    layout->setRowStretch(1, 1);
+    rightLayout->addWidget(title);
+    rightLayout->addWidget(previewContainer);
+
+    // =========================
+    // BOTTOM CONTAINER
+    // =========================
+    QWidget* bottomContainer = new QWidget();
+    QVBoxLayout* bottomLayout = new QVBoxLayout(bottomContainer);
+    bottomLayout->setSpacing(0);
+    bottomLayout->setContentsMargins(0, 0, 0, 0);
+
+    QWidget* bottomRow = new QWidget();
+    QHBoxLayout* bottomRowLayout = new QHBoxLayout(bottomRow);
+    //bottomRowLayout->setSpacing(20);
+    bottomRowLayout->setContentsMargins(0, 0, 0, 0);
+
+    bottomLayout->addStretch();
+    bottomLayout->addStretch();
+    bottomLayout->addStretch();
+    bottomRowLayout->addWidget(bottomButtonsRow);
+    bottomRowLayout->addWidget(bottomRight);
+       // pushes content UP
+
+    bottomLayout->addWidget(bottomRow);
+
+
+    // =========================
+    // GRID PLACEMENT (SHIFTED DOWN)
+    // =========================
+
+    layout->addWidget(cubeMain, 1, 0);
+    layout->addWidget(topRight, 1, 1);
+    layout->addWidget(bottomContainer, 2, 0, 1, 2);
+
+    // =========================
+    // SIZE CONTROL
+    // =========================
+    layout->setRowStretch(0, 0); // stage bar
+    layout->setRowStretch(1, 3); // main content
+    layout->setRowStretch(2, 1); // bottom area
 
     layout->setColumnStretch(0, 1);
     layout->setColumnStretch(1, 1);
 }
-
 
 // CAMERA SCREEN
 void MainWindow::setupCameraScreen()
@@ -163,26 +293,72 @@ void MainWindow::setupCameraScreen()
     QHBoxLayout* topBar = new QHBoxLayout();
     QHBoxLayout* content = new QHBoxLayout();
 
+    // =========================
+    // REMOVE GLOBAL SPACING (IMPORTANT FIX)
+    // =========================
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(5);
+
+    topBar->setContentsMargins(0, 0, 0, 0);
+    content->setContentsMargins(0, 0, 0, 0);
+    content->setSpacing(10);
+
+    // =========================
+    // SCAN ORDER
+    // =========================
+    scanSteps = {
+        "Scan UP face (Yellow)",
+        "Scan LEFT face (Blue)",
+        "Scan FRONT face (Red)",
+        "Scan RIGHT face (Green)",
+        "Scan BACK face (Orange)",
+        "Scan DOWN face (White)"
+    };
+
+    currentFace = 0;
+
+    // =========================
+    // INSTRUCTION LABEL
+    // =========================
+    scanInstruction = new QLabel(scanSteps[0]);
+    scanInstruction->setAlignment(Qt::AlignCenter);
+    scanInstruction->setObjectName("scanInstruction");
+
+    // ?? REMOVE INTERNAL LABEL SPACING
+    scanInstruction->setContentsMargins(0, 0, 0, 0);
+
+    QFont font = scanInstruction->font();
+    font.setPointSize(10);
+    font.setBold(true);
+    scanInstruction->setFont(font);
+
+    // =========================
+    // BUTTONS
+    // =========================
     backButton = new QPushButton("Back");
     scanFaceButton = new QPushButton("Scan Face");
 
-    // ? OBJECT NAMES
     backButton->setObjectName("backButton");
     scanFaceButton->setObjectName("scanFaceButton");
 
     topBar->addWidget(backButton);
     topBar->addWidget(scanFaceButton);
 
+    // =========================
+    // CAMERA + GRID
+    // =========================
     cameraWidget = new CameraWidget(cameraScreen);
     grid = new CubeNet(*cube, cameraScreen);
 
     content->addWidget(cameraWidget, 3);
     content->addWidget(grid, 2);
 
+    // =========================
+    // FINAL LAYOUT ORDER (CLEAN STACK)
+    // =========================
     mainLayout->addLayout(topBar);
     mainLayout->addLayout(content);
-
-    currentFace = 0;
+    mainLayout->addWidget(scanInstruction); // ?? now tightly under camera/grid
 }
 
 // =========================
