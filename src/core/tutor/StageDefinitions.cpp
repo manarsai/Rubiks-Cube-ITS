@@ -2,40 +2,21 @@
 #include <iostream>
 
 
-// WHITE CROSS CHECK (TUTOR-GRADE + STD::COUT DEBUG)
+// BASIC UTIL: CROSS CHECK
 static bool isWhiteCrossComplete(const Cube& cube)
 {
     const auto& s = cube.getState();
 
-    std::cout << "\n==============================\n";
-    std::cout << "WHITE CROSS CHECK START\n";
-    std::cout << "==============================\n";
-
-    // CENTERS (reference colours)
     Colour leftCenter = s[13];
     Colour frontCenter = s[22];
     Colour rightCenter = s[31];
     Colour backCenter = s[40];
-    Colour downCenter = s[49];
 
-    std::cout << "Centers:\n";
-    std::cout << "Left  : " << (int)leftCenter << "\n";
-    std::cout << "Front : " << (int)frontCenter << "\n";
-    std::cout << "Right : " << (int)rightCenter << "\n";
-    std::cout << "Back  : " << (int)backCenter << "\n";
-    std::cout << "Down  : " << (int)downCenter << "\n";
-
-    // Must have white center on bottom
-    if (downCenter != Colour::WHITE)
-    {
-        std::cout << "FAIL: Down center is not WHITE\n";
+    if (s[49] != Colour::WHITE)
         return false;
-    }
 
-    // EDGE DEFINITIONS
     struct Edge
     {
-        const char* name;
         int downPos;
         int sidePos;
         Colour expectedSide;
@@ -43,77 +24,154 @@ static bool isWhiteCrossComplete(const Cube& cube)
 
     Edge edges[4] =
     {
-        { "FRONT", 46, 25, frontCenter },
-        { "RIGHT", 50, 34, rightCenter },
-        { "BACK",  52, 43, backCenter },
-        { "LEFT",  48, 16, leftCenter }
+        {46, 25, frontCenter},
+        {50, 34, rightCenter},
+        {52, 43, backCenter},
+        {48, 16, leftCenter}
     };
 
-    // ===============================
-    // CHECK EACH EDGE
-    // ===============================
     for (const auto& e : edges)
     {
-        Colour downColour = s[e.downPos];
-        Colour sideColour = s[e.sidePos];
-
-        std::cout << "\nChecking: " << e.name << "\n";
-        std::cout << "Down pos " << e.downPos << " = " << (int)downColour << "\n";
-        std::cout << "Side pos " << e.sidePos << " = " << (int)sideColour << "\n";
-        std::cout << "Expected side center = " << (int)e.expectedSide << "\n";
-
-        if (downColour != Colour::WHITE)
-        {
-            std::cout << "FAIL: " << e.name << " down sticker not WHITE\n";
+        if (s[e.downPos] != Colour::WHITE)
             return false;
-        }
 
-        if (sideColour != e.expectedSide)
-        {
-            std::cout << "FAIL: " << e.name << " side mismatch\n";
+        if (s[e.sidePos] != e.expectedSide)
             return false;
-        }
     }
-
-    std::cout << "\nSUCCESS: WHITE CROSS COMPLETE\n";
-    std::cout << "==============================\n\n";
 
     return true;
 }
 
+
+// PLACEHOLDER: FUTURE STAGES
+static bool isF2LComplete(const Cube& cube)
+{
+    // TODO: implement properly
+    return false;
+}
+
+static bool isOLLComplete(const Cube& cube)
+{
+    // TODO
+    return false;
+}
+
+static bool isPLLComplete(const Cube& cube)
+{
+    // TODO
+    return false;
+}
+
+
+// STAGE VALIDATION WRAPPER
+static bool validateStage(Stage stage, const Cube& cube)
+{
+    switch (stage)
+    {
+    case Stage::WHITE_CROSS:
+        return isWhiteCrossComplete(cube);
+
+    case Stage::F2L:
+        return isWhiteCrossComplete(cube) &&
+            isF2LComplete(cube);
+
+    case Stage::OLL:
+        return isWhiteCrossComplete(cube) &&
+            isF2LComplete(cube) &&
+            isOLLComplete(cube);
+
+    case Stage::PLL:
+        return isWhiteCrossComplete(cube) &&
+            isF2LComplete(cube) &&
+            isOLLComplete(cube) &&
+            isPLLComplete(cube);
+
+    case Stage::COMPLETE:
+        return isWhiteCrossComplete(cube) &&
+            isF2LComplete(cube) &&
+            isOLLComplete(cube) &&
+            isPLLComplete(cube);
+
+    case Stage::SCRAMBLED:
+    default:
+        return true;
+    }
+}
 
 // STAGE DEFINITIONS
 static StageDefinition WHITE_CROSS_STAGE =
 {
     Stage::WHITE_CROSS,
     "White Cross",
-    isWhiteCrossComplete
+    [](const Cube& cube)
+    {
+        return validateStage(Stage::WHITE_CROSS, cube);
+    }
 };
 
 static StageDefinition F2L_STAGE =
 {
     Stage::F2L,
     "F2L",
-    nullptr
+    [](const Cube& cube)
+    {
+        return validateStage(Stage::F2L, cube);
+    }
 };
 
 static StageDefinition OLL_STAGE =
 {
     Stage::OLL,
     "OLL",
-    nullptr
+    [](const Cube& cube)
+    {
+        return validateStage(Stage::OLL, cube);
+    }
 };
 
 static StageDefinition PLL_STAGE =
 {
     Stage::PLL,
     "PLL",
-    nullptr
+    [](const Cube& cube)
+    {
+        return validateStage(Stage::PLL, cube);
+    }
 };
 
-// LOOKUP
+static StageDefinition SCRAMBLED_STAGE =
+{
+    Stage::SCRAMBLED,
+    "SCRAMBLED",
+    [](const Cube& cube)
+    {
+        return true;
+    }
+};
+
+
+// PUBLIC API
 namespace StageDefinitions
 {
+    Stage detect(const Cube& cube)
+    {
+        // STRICT ORDER CHECK (top-down)
+
+        if (validateStage(Stage::PLL, cube))
+            return Stage::COMPLETE;
+
+        if (validateStage(Stage::OLL, cube))
+            return Stage::PLL;
+
+        if (validateStage(Stage::F2L, cube))
+            return Stage::OLL;
+
+        if (validateStage(Stage::WHITE_CROSS, cube))
+            return Stage::F2L;
+
+        return Stage::SCRAMBLED;
+    }
+
     const StageDefinition& get(Stage stage)
     {
         switch (stage)
@@ -130,8 +188,12 @@ namespace StageDefinitions
         case Stage::PLL:
             return PLL_STAGE;
 
+        case Stage::COMPLETE:
+            return PLL_STAGE; 
+
+        case Stage::SCRAMBLED:
         default:
-            return WHITE_CROSS_STAGE;
+            return SCRAMBLED_STAGE;
         }
     }
 }

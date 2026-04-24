@@ -2,9 +2,8 @@
 #include <array>
 #include <vector>
 
-// =========================
+
 // IDENTITY
-// =========================
 static std::array<int, 54> makeIdentity()
 {
     std::array<int, 54> p{};
@@ -13,10 +12,8 @@ static std::array<int, 54> makeIdentity()
     return p;
 }
 
-// =========================
+
 // CYCLE HELPER
-// (i0 ? i1 ? i2 ? ... ? i0)
-// =========================
 static void addCycle(std::array<int, 54>& p, const std::vector<int>& c)
 {
     for (size_t i = 0; i < c.size(); i++)
@@ -26,7 +23,7 @@ static void addCycle(std::array<int, 54>& p, const std::vector<int>& c)
 }
 
 /*
-Index layout:
+index layout:
 0–8   U (Yellow)
 9–17  L (Blue)
 18–26 F (Red)
@@ -35,9 +32,7 @@ Index layout:
 45–53 D (White)
 */
 
-// =========================
-// U MOVE
-// =========================
+// u move (up face, clockwise)
 const Moves U = [] {
     auto p = makeIdentity();
 
@@ -51,25 +46,22 @@ const Moves U = [] {
     return Moves{ p };
     }();
 
-// =========================
-// R MOVE
-// =========================
+
+// r move, (right face, clockwise)
 const Moves R = [] {
     auto p = makeIdentity();
 
     addCycle(p, { 27, 29, 35, 33 });
     addCycle(p, { 28, 32, 34, 30 });
 
-    addCycle(p, { 2, 20, 47, 42 });
-    addCycle(p, { 5, 23, 50, 39 });
-    addCycle(p, { 8, 26, 53, 36 });
+    addCycle(p, { 2, 42, 47, 20 });
+    addCycle(p, { 5, 39, 50, 23 });
+    addCycle(p, { 8, 36, 53, 26 });
 
     return Moves{ p };
     }();
 
-// =========================
-// F MOVE
-// =========================
+// f move, (front face, clockwise)
 const Moves F = [] {
     auto p = makeIdentity();
 
@@ -83,14 +75,12 @@ const Moves F = [] {
     return Moves{ p };
     }();
 
-// =========================
-// B MOVE
-// =========================
+// b move, (back face, clockwise)
 const Moves B = [] {
     auto p = makeIdentity();
 
-    addCycle(p, { 36, 38, 44, 42 });
-    addCycle(p, { 37, 41, 43, 39 });
+    addCycle(p, { 36, 42, 44, 38 });
+    addCycle(p, { 37, 39, 43, 41 });
 
     addCycle(p, { 0, 29, 53, 15 });
     addCycle(p, { 1, 32, 52, 12 });
@@ -99,9 +89,8 @@ const Moves B = [] {
     return Moves{ p };
     }();
 
-// =========================
-// INVERSES
-// =========================
+
+// inverse moves
 const Moves U_prime = U.inverse();
 const Moves R_prime = R.inverse();
 const Moves F_prime = F.inverse();

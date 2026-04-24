@@ -176,3 +176,25 @@ std::string Cube::colourToString(Colour c)
     default:              return "?";
     }
 }
+
+bool Cube::isValidCube() const
+{
+    std::array<int, 6> count = { 0 };
+
+    for (auto c : state)
+    {
+        if (c == Colour::UNKNOWN)
+            return false;
+
+        count[(int)c]++;
+    }
+
+    for (int i = 0; i < 6; i++)
+    {
+        if (count[i] != 9)
+            return false;
+    }
+
+    return true;
+}
+

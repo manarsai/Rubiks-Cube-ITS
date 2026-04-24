@@ -1,24 +1,19 @@
 #pragma once
 
 #include <QMainWindow>
-#include <array>
-#include "../core/domain/Cube.h"
-#include <QLabel>
+#include <QStringList>
 
-// =========================
-// FORWARD DECLARATIONS
-// =========================
 class QStackedWidget;
 class QWidget;
 class QPushButton;
+class QLabel;
+class QProgressBar;
+
 class CameraWidget;
 class cubeView;
 class CubeNet;
-class ProgressWheel;   // ? Progress wheel added
+class AppController;
 
-// =========================
-// MAIN WINDOW
-// =========================
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -29,41 +24,41 @@ public:
 
 private:
     // =========================
-    // CORE STATE
+    // CORE
     // =========================
-    Cube* cube = nullptr;
+    AppController* controller = nullptr;
     int currentFace = 0;
 
-    // =========================
-    // UI STACK
-    // =========================
     QStackedWidget* stack = nullptr;
 
     QWidget* startScreen = nullptr;
     QWidget* mainScreen = nullptr;
     QWidget* cameraScreen = nullptr;
-    QLabel* scanInstruction;
-    QStringList scanSteps;
 
     // =========================
-    // WIDGETS
+    // UI ELEMENTS
     // =========================
-    CameraWidget* cameraWidget = nullptr;
     cubeView* cubeStart = nullptr;
     cubeView* cubeMain = nullptr;
     CubeNet* grid = nullptr;
-    ProgressWheel* progressWheel = nullptr;   // ? progress wheel
+
+    CameraWidget* cameraWidget = nullptr;
+
+    QLabel* solverOutputLabel = nullptr;
+    QLabel* scanInstruction = nullptr;
+
+    QProgressBar* stageBar = nullptr;
 
     // =========================
     // BUTTONS
     // =========================
     QPushButton* newButton = nullptr;
     QPushButton* continueButton = nullptr;
-    QPushButton* settingsButton = nullptr;
     QPushButton* exitButton = nullptr;
 
     QPushButton* scanButton = nullptr;
-    QPushButton* backButtonmain = nullptr;
+    QPushButton* pauseButton = nullptr;
+
     QPushButton* backButton = nullptr;
     QPushButton* scanFaceButton = nullptr;
 
@@ -74,12 +69,16 @@ private:
     void setupMainScreen();
     void setupCameraScreen();
     void setupConnections();
-    void applyStyles();
+
+    // =========================
+    // UI BUILDERS
+    // =========================
+    QWidget* createNavPanel();
+    QWidget* createCubePanel();
 
     // =========================
     // LOGIC
     // =========================
     void handleScan();
     void resetScan();
-    bool isValidFace(const std::array<Colour, 9>& face);
 };

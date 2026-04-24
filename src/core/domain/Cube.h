@@ -76,5 +76,8 @@ public:
     std::string serialize() const;
     void deserialize(const std::string& str);
 
+
+    bool isValidCube() const;
+
     static std::string colourToString(Colour c);
 };

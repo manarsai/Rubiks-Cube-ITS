@@ -17,4 +17,6 @@ struct StageDefinition
 namespace StageDefinitions
 {
     const StageDefinition& get(Stage stage);
+
+    Stage detect(const Cube& cube);  // ?? ADD THIS
 }
