@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../domain/Cube.h"
-#include "Stages.h"
+#include "Cube.h"
+#include "../domain/Stages.h"
 
 // One stage rule
 struct StageDefinition

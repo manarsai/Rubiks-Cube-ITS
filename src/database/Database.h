@@ -13,34 +13,51 @@ public:
     void initTables();
 
     // =========================
-    // SESSION
+    // SESSION (SAVE/RESUME GAME)
     // =========================
-    void saveSession(int face, const std::string& cubeState);
-    bool loadSession(int& face, std::string& cubeState);
+// SESSION
+    void saveSession(int face,
+        const std::string& cubeState,
+        int stage,
+        const std::string& instruction,
+        bool solverMode);
+
+    bool loadSession(int& face,
+        std::string& cubeState,
+        int& stage,
+        std::string& instruction,
+        bool& solverMode);
+
     void resetSession();
-
-    // =========================
-    // STUDENT
-    // =========================
-    void saveStudent(const std::string& name, int stage);
-    bool loadStudent(std::string& name, int& stage);
-
-    // =========================
-    // STAGE STATS
-    // =========================
-    void updateSuccess(const std::string& name, int stage);
-    void updateFailure(const std::string& name, int stage);
-    void updateSolverUse(const std::string& name, int stage);
-    void updateTime(const std::string& name, int stage, double seconds);
-
-    void getStageStats(const std::string& name, int stage,
-        int& success, int& fail, int& solver, double& time);
-
     bool hasSession();
+
+    // =========================
+    // USER SETTINGS (PERSISTED)
+    // =========================
+    void setUserName(const std::string& name);
+    const std::string& getUserName() const;
+    bool loadUserName(std::string& name);
+
+    // =========================
+    // STAGE STATS (GLOBAL)
+    // =========================
+    void updateSuccess(int stage);
+    void updateFailure(int stage);
+    void updateSolverUse(int stage);
+    void updateTime(int stage, double seconds);
+
+    void getStageStats(int stage,
+        int& success,
+        int& fail,
+        int& solver,
+        double& time);
 
 private:
     Database() = default;
     ~Database() = default;
 
     sqlite3* db = nullptr;
+
+    // cached runtime user name
+    std::string currentUserName;
 };

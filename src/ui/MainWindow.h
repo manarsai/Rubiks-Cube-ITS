@@ -2,6 +2,11 @@
 
 #include <QMainWindow>
 #include <QStringList>
+#include <QLineEdit>
+#include "../../app/AppController.h"
+#include <vector>
+#include <QPixmap>
+
 
 class QStackedWidget;
 class QWidget;
@@ -41,6 +46,17 @@ private:
     cubeView* cubeStart = nullptr;
     cubeView* cubeMain = nullptr;
     CubeNet* grid = nullptr;
+    QWidget* nameScreen;
+    QLineEdit* nameInput;
+    QPushButton* startButton;
+    QLabel* userLabel;
+    QLabel* guidanceLabel;
+    bool solverMode = false;
+    QPushButton* retryButton;
+
+    int currentStage = 0;
+    std::string currentInstruction;
+
 
     CameraWidget* cameraWidget = nullptr;
 
@@ -63,12 +79,23 @@ private:
     QPushButton* scanFaceButton = nullptr;
 
     // =========================
+// PREVIEW IMAGES
+// =========================
+    QLabel* preview1 = nullptr;
+    QLabel* preview2 = nullptr;
+    QLabel* preview3 = nullptr;
+    QLabel* previewLabel = nullptr;
+
+    // =========================
     // SETUP
     // =========================
     void setupStartScreen();
+    void setupNameScreen();
     void setupMainScreen();
     void setupCameraScreen();
     void setupConnections();
+
+    void updatePreviews(Stage stage);
 
     // =========================
     // UI BUILDERS
@@ -81,4 +108,5 @@ private:
     // =========================
     void handleScan();
     void resetScan();
+
 };

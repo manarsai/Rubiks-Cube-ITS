@@ -1,5 +1,8 @@
 #include "Cube.h"
 #include <sstream>
+#include <iostream>
+#include "Moves.h"
+#include <set>
 
 // =========================
 // Constructor
@@ -101,6 +104,14 @@ void Cube::setFace(int face, const std::array<Colour, 9>& faceColors)
 // =========================
 void Cube::applyMove(const Move& m)
 {
+    // ?? DEBUG: check permutation validity
+    std::set<int> check;
+
+    for (int i = 0; i < 54; i++)
+        check.insert(m.perm[i]);
+
+    std::cout << "perm size = " << check.size() << std::endl;
+
     std::array<Colour, 54> newState;
 
     for (int i = 0; i < 54; i++)
@@ -108,7 +119,6 @@ void Cube::applyMove(const Move& m)
 
     state = newState;
 }
-
 // =========================
 // Solved check
 // =========================
@@ -146,17 +156,24 @@ std::string Cube::serialize() const
 // =========================
 // Deserialize
 // =========================
-void Cube::deserialize(const std::string& str)
+void Cube::deserialize(const std::string& data)
 {
-    std::istringstream ss(str);
-    std::string val;
+    std::stringstream ss(data);
+    std::string item;
 
     int i = 0;
 
-    while (std::getline(ss, val, ',') && i < 54)
+    while (std::getline(ss, item, ',') && i < 54)
     {
-        state[i] = static_cast<Colour>(std::stoi(val));
+        int value = std::stoi(item);
+        state[i] = static_cast<Colour>(value);
         i++;
+    }
+
+    // safety check
+    if (i != 54)
+    {
+        std::cout << "Deserialize failed: wrong number of values\n";
     }
 }
 

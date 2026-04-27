@@ -5,43 +5,35 @@
 // BASIC UTIL: CROSS CHECK
 static bool isWhiteCrossComplete(const Cube& cube)
 {
-    const auto& s = cube.getState();
-
-    Colour leftCenter = s[13];
-    Colour frontCenter = s[22];
-    Colour rightCenter = s[31];
-    Colour backCenter = s[40];
-
-    if (s[49] != Colour::WHITE)
+    // down center
+    if (cube.at(DOWN, 1, 1) != Colour::WHITE)
         return false;
 
-    struct Edge
-    {
-        int downPos;
-        int sidePos;
+    // check edges + alignment
+    struct Edge {
+        int drow, dcol;
+        int sideFace;
         Colour expectedSide;
     };
 
-    Edge edges[4] =
-    {
-        {46, 25, frontCenter},
-        {50, 34, rightCenter},
-        {52, 43, backCenter},
-        {48, 16, leftCenter}
+    Edge edges[] = {
+        {0, 1, FRONT, Colour::RED},
+        {1, 2, RIGHT, Colour::GREEN},
+        {1, 0, LEFT,  Colour::BLUE},
+        {2, 1, BACK,  Colour::ORANGE}
     };
 
     for (const auto& e : edges)
     {
-        if (s[e.downPos] != Colour::WHITE)
+        if (cube.at(DOWN, e.drow, e.dcol) != Colour::WHITE)
             return false;
 
-        if (s[e.sidePos] != e.expectedSide)
+        if (cube.at(e.sideFace, 2, 1) != e.expectedSide)
             return false;
     }
 
     return true;
 }
-
 
 // PLACEHOLDER: FUTURE STAGES
 static bool isF2LComplete(const Cube& cube)
@@ -94,7 +86,7 @@ static bool validateStage(Stage stage, const Cube& cube)
 
     case Stage::SCRAMBLED:
     default:
-        return true;
+        return false;
     }
 }
 
@@ -155,19 +147,15 @@ namespace StageDefinitions
 {
     Stage detect(const Cube& cube)
     {
-        // STRICT ORDER CHECK (top-down)
+        bool cross = isWhiteCrossComplete(cube);
+        bool f2l = cross && isF2LComplete(cube);
+        bool oll = f2l && isOLLComplete(cube);
+        bool pll = oll && isPLLComplete(cube);
 
-        if (validateStage(Stage::PLL, cube))
-            return Stage::COMPLETE;
-
-        if (validateStage(Stage::OLL, cube))
-            return Stage::PLL;
-
-        if (validateStage(Stage::F2L, cube))
-            return Stage::OLL;
-
-        if (validateStage(Stage::WHITE_CROSS, cube))
-            return Stage::F2L;
+        if (pll) return Stage::COMPLETE;
+        if (oll) return Stage::PLL;
+        if (f2l) return Stage::F2L;
+        if (cross) return Stage::WHITE_CROSS;
 
         return Stage::SCRAMBLED;
     }
@@ -189,7 +177,7 @@ namespace StageDefinitions
             return PLL_STAGE;
 
         case Stage::COMPLETE:
-            return PLL_STAGE; 
+            return PLL_STAGE;
 
         case Stage::SCRAMBLED:
         default:

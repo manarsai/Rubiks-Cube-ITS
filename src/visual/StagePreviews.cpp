@@ -13,13 +13,13 @@ QPixmap StagePreviews::createFaceImage(const QString& face)
 
     auto getColor = [](QChar c) -> QColor {
         switch (c.toLatin1()) {
-        case 'W': return QColor(Qt::white);
-        case 'Y': return QColor(Qt::yellow);
-        case 'R': return QColor(Qt::red);
+        case 'W': return Qt::white;
+        case 'Y': return Qt::yellow;
+        case 'R': return Qt::red;
         case 'O': return QColor(255, 165, 0);
-        case 'B': return QColor(Qt::blue);
-        case 'G': return QColor(Qt::green);
-        default:  return QColor(Qt::black);
+        case 'B': return Qt::blue;
+        case 'G': return Qt::green;
+        default:  return Qt::gray;
         }
         };
 
@@ -36,4 +36,61 @@ QPixmap StagePreviews::createFaceImage(const QString& face)
     }
 
     return pixmap;
+}
+
+std::vector<QPixmap> StagePreviews::getStagePreviews(Stage stage)
+{
+    switch (stage)
+    {
+    case Stage::WHITE_CROSS:
+        return {
+            createFaceImage(" W "
+                            "WWW"
+                            " W ")
+        };
+
+    case Stage::F2L:
+        return {
+            createFaceImage("   "
+                            "RRR"
+                            "RRR"),
+        };
+
+    case Stage::OLL:
+        return {
+            createFaceImage(" Y "
+                            "YYY"
+                            "YY ")
+        };
+            return {
+        createFaceImage("`Y "
+                        "YYY"
+                        " Y ")
+            };
+            return {
+        createFaceImage(" YY"
+                        "YYY"
+                        " YY")
+            };
+
+    case Stage::PLL:
+        return {
+            createFaceImage("RRR"
+                            "R R"
+                            "RRR"),
+            createFaceImage("BBB"
+                            "B B"
+                            "BBB"),
+            createFaceImage("OOO"
+                            "O O"
+                            "OOO")
+        };
+
+    default:
+        return {
+            createFaceImage("WWW"
+                            "WWW"
+                            "WWW")
+        };
+    }
 }

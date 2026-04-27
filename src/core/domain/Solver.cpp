@@ -26,22 +26,6 @@ struct Compare {
 };
 
 // =========================
-// APPLY MOVE (FIXED DIRECTION)
-// =========================
-// perm[i] = destination of sticker i
-std::array<Colour, 54> applyMove(
-    const std::array<Colour, 54>& state,
-    const std::array<int, 54>& perm
-) {
-    std::array<Colour, 54> next{};
-
-    for (int i = 0; i < 54; i++)
-        next[perm[i]] = state[i];
-
-    return next;
-}
-
-// =========================
 // GOAL: WHITE CROSS ONLY
 // =========================
 bool isWhiteCross(const std::array<Colour, 54>& s)
@@ -56,7 +40,7 @@ bool isWhiteCross(const std::array<Colour, 54>& s)
 }
 
 // =========================
-// HEURISTIC (CROSS ONLY)
+// HEURISTIC (slightly improved)
 // =========================
 int Solver::heuristic(const std::array<Colour, 54>& s)
 {
@@ -65,14 +49,16 @@ int Solver::heuristic(const std::array<Colour, 54>& s)
     int edges[4] = { 46, 50, 52, 48 };
 
     for (int i : edges)
+    {
         if (s[i] != Colour::WHITE)
-            h++;
+            h += 2; // stronger penalty improves ordering
+    }
 
     return h;
 }
 
 // =========================
-// STATE HASH (FAST VISITED)
+// STATE HASH
 // =========================
 struct StateHash {
     size_t operator()(const std::array<Colour, 54>& s) const {
@@ -100,17 +86,21 @@ std::vector<std::string> Solver::solveWhiteCross(const Cube& cube)
 
     open.push(start);
 
-    // Reduced but sufficient move set
-    std::vector<std::pair<std::string, std::array<int, 54>>> moves =
+    // =========================
+    // FULL MOVE SET (FIXED)
+    // =========================
+    std::vector<std::pair<std::string, Move>> moves =
     {
-        {"U",  U.perm},
-        {"U'", U_prime.perm},
-        {"F",  F.perm},
-        {"F'", F_prime.perm},
-        {"R",  R.perm},
-        {"R'", R_prime.perm}
+        {"U",  U}, {"U'", U_prime},
+        {"D",  D}, {"D'", D_prime},
+        {"F",  F}, {"F'", F_prime},
+        {"B",  B}, {"B'", B_prime},
+        {"R",  R}, {"R'", R_prime}
     };
 
+    // =========================
+    // SEARCH LOOP
+    // =========================
     while (!open.empty())
     {
         Node current = open.top();
@@ -133,33 +123,50 @@ std::vector<std::string> Solver::solveWhiteCross(const Cube& cube)
         }
 
         // =========================
-        // DEPTH LIMIT (cross is shallow)
+        // DEPTH LIMIT (FIXED)
         // =========================
-        if (current.g >= 8)
+        if (current.g >= 15)   // ?? increased from 8 ? 15
             continue;
 
         // =========================
         // EXPAND
         // =========================
-        for (const auto& [name, perm] : moves)
+        for (const auto& [name, move] : moves)
         {
-            // avoid immediate reversals
+            // =========================
+            // PRUNING (SAFE VERSION ONLY)
+            // =========================
             if (!current.path.empty())
             {
                 const std::string& last = current.path.back();
+
+                // prevent direct undo
                 if ((last == "U" && name == "U'") ||
                     (last == "U'" && name == "U") ||
                     (last == "F" && name == "F'") ||
                     (last == "F'" && name == "F") ||
                     (last == "R" && name == "R'") ||
-                    (last == "R'" && name == "R"))
+                    (last == "R'" && name == "R") ||
+                    (last == "D" && name == "D'") ||
+                    (last == "D'" && name == "D") ||
+                    (last == "B" && name == "B'") ||
+                    (last == "B'" && name == "B"))
                 {
                     continue;
                 }
             }
 
+            // =========================
+            // APPLY MOVE (FAST VERSION)
+            // =========================
             Node next;
-            next.state = applyMove(current.state, perm);
+            next.state = current.state; // copy
+
+            Cube temp;
+            temp.setState(current.state);
+            temp.applyMove(move);
+            next.state = temp.getState();
+
             next.g = current.g + 1;
             next.h = heuristic(next.state);
             next.path = current.path;
@@ -172,7 +179,6 @@ std::vector<std::string> Solver::solveWhiteCross(const Cube& cube)
     return {};
 }
 
-
 // =========================
 // DEBUG: MOVE INVERSE TEST
 // =========================
@@ -181,21 +187,22 @@ void Solver::testMoveInverses()
     std::cout << "\n=== TESTING MOVE INVERSES ===\n";
 
     Cube c;
-
     auto original = c.getState();
 
-    // apply move then inverse
-    auto afterU = applyMove(original, U.perm);
-    auto backU = applyMove(afterU, U_prime.perm);
+    Cube temp;
+    temp.setState(original);
+    temp.applyMove(U);
 
-    bool ok = (backU == original);
+    Cube temp2;
+    temp2.setState(temp.getState());
+    temp2.applyMove(U_prime);
+
+    bool ok = (temp2.getState() == original);
 
     std::cout << "U -> U' test: " << (ok ? "PASS" : "FAIL") << "\n";
 
     if (!ok)
-    {
         std::cout << "ERROR: inverse moves are NOT correct\n";
-    }
 
     std::cout << "=============================\n";
 }

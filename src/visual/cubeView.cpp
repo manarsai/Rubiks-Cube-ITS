@@ -1,6 +1,11 @@
 #include "cubeView.h"
 #include <QTimer>
 #include <cmath>
+#include <QMouseEvent>
+#include <src/core/domain/Moves.h>
+#include <src/core/domain/Cube.h>
+#include <iostream>
+
 
 // =========================
 // Constructor
@@ -17,13 +22,111 @@ cubeView::cubeView(Cube& cubeModel, QWidget* parent)
                 cubies.push_back({ x, y, z });
 
     auto* timer = new QTimer(this);
+
     connect(timer, &QTimer::timeout, this, [this]()
         {
-            angleX += 0.3f;
-            angleY += 0.6f;
-            update();
+            if (currentMove.active)
+            {
+                currentMove.angle += currentMove.speed;
+
+                if (currentMove.angle >= 90.0f)
+                {
+                    currentMove.active = false;
+
+                    Move m{};
+
+                    switch (currentMove.move)
+                    {
+                    case 'R':
+                        m = currentMove.prime ? R_prime : R;
+                        break;
+                    case 'U':
+                        m = currentMove.prime ? U_prime : U;
+                        break;
+                    case 'F':
+                        m = currentMove.prime ? F_prime : F;
+                        break;
+                    case 'B':
+                        m = currentMove.prime ? B_prime : B;
+                        break;
+                    case 'D':
+                        m = currentMove.prime ? D_prime : D;
+                        break;
+                    }
+
+                    cube.applyMove(m);
+                    startNextMove();
+                }
+
+                update();
+                QCoreApplication::processEvents();
+            }
+
+
         });
+
     timer->start(16);
+}
+
+void cubeView::drawCubeEdges()
+{
+    glColor3f(0, 0, 0);
+    glLineWidth(10.0f);
+
+    float s = 0.5f;
+
+    glBegin(GL_LINES);
+
+    // bottom
+    glVertex3f(-s, -s, -s); glVertex3f(s, -s, -s);
+    glVertex3f(s, -s, -s); glVertex3f(s, -s, s);
+    glVertex3f(s, -s, s); glVertex3f(-s, -s, s);
+    glVertex3f(-s, -s, s); glVertex3f(-s, -s, -s);
+
+    // top
+    glVertex3f(-s, s, -s); glVertex3f(s, s, -s);
+    glVertex3f(s, s, -s); glVertex3f(s, s, s);
+    glVertex3f(s, s, s); glVertex3f(-s, s, s);
+    glVertex3f(-s, s, s); glVertex3f(-s, s, -s);
+
+    // verticals
+    glVertex3f(-s, -s, -s); glVertex3f(-s, s, -s);
+    glVertex3f(s, -s, -s); glVertex3f(s, s, -s);
+    glVertex3f(s, -s, s); glVertex3f(s, s, s);
+    glVertex3f(-s, -s, s); glVertex3f(-s, s, s);
+
+    glEnd();
+}
+
+// =========================
+// Move queue entry
+// =========================
+void cubeView::setMoves(const std::vector<std::string>& moves)
+{
+    std::queue<std::string> empty;
+    std::swap(moveQueue, empty);
+
+    for (const auto& m : moves)
+        moveQueue.push(m);
+
+    if (!currentMove.active)
+        startNextMove();
+}
+
+void cubeView::startNextMove()
+{
+    if (moveQueue.empty())
+        return;
+
+    std::string m = moveQueue.front();
+    moveQueue.pop();
+
+    currentMove.active = true;
+    currentMove.angle = 0.0f;
+    currentMove.speed = 3.0f;
+
+    currentMove.move = m[0];
+    currentMove.prime = (m.size() > 1 && m[1] == '\'');
 }
 
 // =========================
@@ -32,10 +135,7 @@ void cubeView::initializeGL()
     initializeOpenGLFunctions();
 
     glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LEQUAL);
-
     glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
 
     glClearColor(1, 1, 1, 1);
 }
@@ -77,13 +177,36 @@ void cubeView::paintGL()
 }
 
 // =========================
-// MAIN LOOP
+// ?? MAIN RENDER LOOP (FIXED)
 // =========================
 void cubeView::drawAllCubies()
 {
     for (const auto& c : cubies)
     {
         glPushMatrix();
+
+        bool inLayer = false;
+        float axisX = 0, axisY = 0, axisZ = 0;
+
+        if (currentMove.active)
+        {
+            if (currentMove.move == 'R' && c.x == 1) { inLayer = true; axisX = 1; }
+  
+
+            if (currentMove.move == 'U' && c.y == 1) { inLayer = true; axisY = 1; }
+            if (currentMove.move == 'D' && c.y == -1) { inLayer = true; axisY = 1; }
+
+            if (currentMove.move == 'F' && c.z == 1) { inLayer = true; axisZ = 1; }
+            if (currentMove.move == 'B' && c.z == -1) { inLayer = true; axisZ = 1; }
+
+
+            if (inLayer)
+            {
+                float dir = currentMove.prime ? 1.0f : -1.0f;
+                glRotatef(dir * currentMove.angle, axisX, axisY, axisZ);
+            }
+        }
+
         glTranslatef(c.x * 1.05f, c.y * 1.05f, c.z * 1.05f);
 
         drawCubie(c);
@@ -105,13 +228,13 @@ Colour cubeView::safeAt(int face, int row, int col)
 }
 
 // =========================
-// UNIFIED MAPPING (FIX)
-// =========================
 inline int toFace(int v)
 {
-    return v + 1; // -1..1 ? 0..2
+    return v + 1;
 }
 
+// =========================
+// Draw cubie (UNCHANGED)
 // =========================
 void cubeView::drawCubie(const Cubie& c)
 {
@@ -119,88 +242,46 @@ void cubeView::drawCubie(const Cubie& c)
 
     glBegin(GL_QUADS);
 
-    // ================= FRONT (z = +1)
     if (c.z == 1)
     {
-        Colour col = safeAt(2, toFace(-c.y), toFace(c.x));
-        QColor qc = convertColour(col == Colour::UNKNOWN ? Colour::WHITE : col);
-
+        QColor qc = convertColour(safeAt(2, toFace(-c.y), toFace(c.x)));
         glColor3f(qc.redF(), qc.greenF(), qc.blueF());
-
-        glVertex3f(-s, -s, s);
-        glVertex3f(s, -s, s);
-        glVertex3f(s, s, s);
-        glVertex3f(-s, s, s);
+        glVertex3f(-s, -s, s); glVertex3f(s, -s, s); glVertex3f(s, s, s); glVertex3f(-s, s, s);
     }
 
-    // ================= BACK (z = -1)
     if (c.z == -1)
     {
-        Colour col = safeAt(4, toFace(-c.y), toFace(-c.x));
-        QColor qc = convertColour(col == Colour::UNKNOWN ? Colour::WHITE : col);
-
+        QColor qc = convertColour(safeAt(4, toFace(-c.y), toFace(-c.x)));
         glColor3f(qc.redF(), qc.greenF(), qc.blueF());
-
-        glVertex3f(-s, -s, -s);
-        glVertex3f(-s, s, -s);
-        glVertex3f(s, s, -s);
-        glVertex3f(s, -s, -s);
+        glVertex3f(-s, -s, -s); glVertex3f(-s, s, -s); glVertex3f(s, s, -s); glVertex3f(s, -s, -s);
     }
 
-    // ================= LEFT (x = -1)
     if (c.x == -1)
     {
-        Colour col = safeAt(1, toFace(-c.y), toFace(c.z));
-        QColor qc = convertColour(col == Colour::UNKNOWN ? Colour::WHITE : col);
-
+        QColor qc = convertColour(safeAt(1, toFace(-c.y), toFace(c.z)));
         glColor3f(qc.redF(), qc.greenF(), qc.blueF());
-
-        glVertex3f(-s, -s, -s);
-        glVertex3f(-s, -s, s);
-        glVertex3f(-s, s, s);
-        glVertex3f(-s, s, -s);
+        glVertex3f(-s, -s, -s); glVertex3f(-s, -s, s); glVertex3f(-s, s, s); glVertex3f(-s, s, -s);
     }
 
-    // ================= RIGHT (x = 1)
     if (c.x == 1)
     {
-        Colour col = safeAt(3, toFace(-c.y), toFace(-c.z));
-        QColor qc = convertColour(col == Colour::UNKNOWN ? Colour::WHITE : col);
-
+        QColor qc = convertColour(safeAt(3, toFace(-c.y), toFace(-c.z)));
         glColor3f(qc.redF(), qc.greenF(), qc.blueF());
-
-        glVertex3f(s, -s, -s);
-        glVertex3f(s, s, -s);
-        glVertex3f(s, s, s);
-        glVertex3f(s, -s, s);
+        glVertex3f(s, -s, -s); glVertex3f(s, s, -s); glVertex3f(s, s, s); glVertex3f(s, -s, s);
     }
 
-    // ================= UP (y = 1)
     if (c.y == 1)
     {
-        Colour col = safeAt(0, toFace(c.z), toFace(c.x));
-        QColor qc = convertColour(col == Colour::UNKNOWN ? Colour::WHITE : col);
-
+        QColor qc = convertColour(safeAt(0, toFace(c.z), toFace(c.x)));
         glColor3f(qc.redF(), qc.greenF(), qc.blueF());
-
-        glVertex3f(-s, s, -s);
-        glVertex3f(-s, s, s);
-        glVertex3f(s, s, s);
-        glVertex3f(s, s, -s);
+        glVertex3f(-s, s, -s); glVertex3f(-s, s, s); glVertex3f(s, s, s); glVertex3f(s, s, -s);
     }
 
-    // ================= DOWN (y = -1)
     if (c.y == -1)
     {
-        Colour col = safeAt(5, toFace(-c.z), toFace(c.x));
-        QColor qc = convertColour(col == Colour::UNKNOWN ? Colour::WHITE : col);
-
+        QColor qc = convertColour(safeAt(5, toFace(-c.z), toFace(c.x)));
         glColor3f(qc.redF(), qc.greenF(), qc.blueF());
-
-        glVertex3f(-s, -s, -s);
-        glVertex3f(s, -s, -s);
-        glVertex3f(s, -s, s);
-        glVertex3f(-s, -s, s);
+        glVertex3f(-s, -s, -s); glVertex3f(s, -s, -s); glVertex3f(s, -s, s); glVertex3f(-s, -s, s);
     }
 
     glEnd();
@@ -222,34 +303,38 @@ QColor cubeView::convertColour(Colour c)
 }
 
 // =========================
-// EDGES (unchanged per cubie)
+// Mouse controls (unchanged)
 // =========================
-void cubeView::drawCubeEdges()
+void cubeView::mousePressEvent(QMouseEvent* event)
 {
-    glColor3f(0, 0, 0);
-    glLineWidth(10.0f);
+    if (event->button() == Qt::LeftButton)
+    {
+        dragging = true;
+        lastMousePos = event->pos();
+    }
+}
 
-    float s = 0.5f;
+void cubeView::mouseMoveEvent(QMouseEvent* event)
+{
+    if (!dragging) return;
 
-    glBegin(GL_LINES);
+    QPoint delta = event->pos() - lastMousePos;
+    lastMousePos = event->pos();
 
-    // bottom
-    glVertex3f(-s, -s, -s); glVertex3f(s, -s, -s);
-    glVertex3f(s, -s, -s); glVertex3f(s, -s, s);
-    glVertex3f(s, -s, s); glVertex3f(-s, -s, s);
-    glVertex3f(-s, -s, s); glVertex3f(-s, -s, -s);
+    float sensitivity = 0.5f;
+    angleY += delta.x() * sensitivity;
+    angleX += delta.y() * sensitivity;
 
-    // top
-    glVertex3f(-s, s, -s); glVertex3f(s, s, -s);
-    glVertex3f(s, s, -s); glVertex3f(s, s, s);
-    glVertex3f(s, s, s); glVertex3f(-s, s, s);
-    glVertex3f(-s, s, s); glVertex3f(-s, s, -s);
+    update();
+}
 
-    // verticals
-    glVertex3f(-s, -s, -s); glVertex3f(-s, s, -s);
-    glVertex3f(s, -s, -s); glVertex3f(s, s, -s);
-    glVertex3f(s, -s, s); glVertex3f(s, s, s);
-    glVertex3f(-s, -s, s); glVertex3f(-s, s, s);
+void cubeView::mouseReleaseEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::LeftButton)
+        dragging = false;
+}
 
-    glEnd();
+void cubeView::testMoves()
+{
+    setMoves({ "R","D"});
 }

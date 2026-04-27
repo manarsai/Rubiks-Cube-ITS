@@ -20,15 +20,15 @@ void Styles::apply()
        GLOBAL BUTTON STYLE
     ===================================================== */
     QPushButton {
-        background: transparent;
-        color: black;
-        border-radius: 10px;
-        padding: 10px;
-        font-size: 28px;
+        background: #2c7be5;
+        color: white;
+        border-radius: 5px;
+        padding: 5px;
+        font-size: 20px;
     }
 
     QPushButton:hover {
-        color: #81b0de;
+        background: #81b0de;
     }
 
     /* Small buttons (secondary actions) */
@@ -42,7 +42,7 @@ void Styles::apply()
     /* Primary action buttons */
     QPushButton#scanButton,
     QPushButton#scanFaceButton {
-        font-size: 20px;
+        font-size: 15px;
     }
 
     /* =====================================================
@@ -60,8 +60,8 @@ void Styles::apply()
     QProgressBar#stageBar {
         border: 1px solid #2c7be5;
         border-radius: 12px;
-        background-color: #e1effc;
-        height: 40px;
+        background-color: #f5f9ff;
+        height: 35px;
         text-align: center;
         color: black;
         font-size: 16px;
@@ -87,6 +87,25 @@ void Styles::apply()
     QLabel {
         color: #111;
     }
+
+    QLabel#userLabel {
+        color: #2c7be5;
+        font-size: 22px;
+
+        padding-left: 10px;
+    }
+
+
+    QWidget#guidanceBox {
+    background: #f5f9ff;
+    font-size: 20px;
+    border: 1px solid #2c7be5;
+    border-radius: 12px;
+    padding: 10px;
+}
+
+
+
     )";
 
     qApp->setStyleSheet(style);

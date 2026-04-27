@@ -1,44 +1,32 @@
 #pragma once
 #include <array>
-#include <vector>
 
-// =========================
-// MOVE STRUCTURE
-// =========================
-struct Moves {
-    std::array<int, 54> perm;
+struct Move {
+    std::array<int, 54> perm{};
 
-    Moves inverse() const {
-        Moves inv{};
+    Move inverse() const {
+        Move inv{};
         for (int i = 0; i < 54; ++i)
             inv.perm[perm[i]] = i;
         return inv;
     }
 
-    friend Moves operator*(const Moves& a, const Moves& b) {
-        Moves result{};
+    friend Move operator*(const Move& a, const Move& b) {
+        Move result{};
         for (int i = 0; i < 54; ++i)
             result.perm[i] = a.perm[b.perm[i]];
         return result;
     }
 };
 
-inline bool isIdentity(const Moves& m)
-{
-    for (int i = 0; i < 54; ++i)
-        if (m.perm[i] != i) return false;
-    return true;
-}
+extern const Move U;
+extern const Move R;
+extern const Move F;
+extern const Move B;
+extern const Move D;
 
-// =========================
-// MOVES
-// =========================
-extern const Moves U;
-extern const Moves R;
-extern const Moves F;
-extern const Moves B;
-
-extern const Moves U_prime;
-extern const Moves R_prime;
-extern const Moves F_prime;
-extern const Moves B_prime;
+extern const Move U_prime;
+extern const Move R_prime;
+extern const Move F_prime;
+extern const Move B_prime;
+extern const Move D_prime;

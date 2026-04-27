@@ -1,35 +1,38 @@
 #include "CubeNet.h"
 #include <QPainter>
 #include "../core/domain/Cube.h"
+#include "../core/domain/Validator.h"
 
 CubeNet::CubeNet(Cube& c, QWidget* parent)
     : QWidget(parent), cube(c)
 {
-    setMinimumSize(300, 300);
+    setMinimumSize(400, 350);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 }
 
 // ===============================
-// PAINT
+// PAINT (FIXED + RESPONSIVE)
 // ===============================
 void CubeNet::paintEvent(QPaintEvent*)
 {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
-    int w = width();
-    int h = height();
+    const int margin = 25;
 
-    int faceSize = std::min(w, h) / 4;
+    int w = width() - margin * 2;
+    int h = height() - margin * 2;
+
+    int faceSize = std::min(w / 4, h / 3);
     int cellSize = faceSize / 3;
 
-    int centerX = w / 2;
-    int centerY = h / 2;
+    int centerX = width() / 2;
+    int centerY = height() / 2;
 
     painter.setPen(QPen(Qt::black, 2));
 
     auto drawFace = [&](int startX, int startY, int faceIndex)
         {
-            // still valid — Cube already abstracts indexing
             auto face = cube.getFace(faceIndex);
 
             for (int r = 0; r < 3; r++)
@@ -45,8 +48,7 @@ void CubeNet::paintEvent(QPaintEvent*)
 
                     Colour col = face[r * 3 + c];
 
-                    QColor qcolor = Qt::gray;
-
+                    QColor qcolor;
                     switch (col)
                     {
                     case Colour::WHITE:  qcolor = Qt::white; break;
@@ -55,7 +57,7 @@ void CubeNet::paintEvent(QPaintEvent*)
                     case Colour::GREEN:  qcolor = Qt::green; break;
                     case Colour::YELLOW: qcolor = Qt::yellow; break;
                     case Colour::ORANGE: qcolor = QColor(255, 165, 0); break;
-                    default: qcolor = Qt::gray; break;
+                    default:              qcolor = QColor(180, 180, 180); break;
                     }
 
                     painter.fillRect(rect, qcolor);
@@ -64,31 +66,43 @@ void CubeNet::paintEvent(QPaintEvent*)
             }
         };
 
-    int originX = centerX - faceSize / 2;
-    int originY = centerY - faceSize * 2;
+    auto x = [&](int col)
+        {
+            return centerX - (faceSize * 2) + col * faceSize;
+        };
 
-    auto x = [&](int col) { return originX + col * faceSize; };
-    auto y = [&](int row) { return originY + row * faceSize; };
+    auto y = [&](int row)
+        {
+            return centerY - (faceSize * 3 / 2) + row * faceSize;
+        };
 
     // ===============================
-    // NET LAYOUT (unchanged visually)
+    // NET LAYOUT (CENTERED + SAFE)
     // ===============================
-    drawFace(x(0), y(0), 0); // UP
+    drawFace(x(1), y(0), 0); // UP
 
-    drawFace(x(-1), y(1), 1); // LEFT
-    drawFace(x(0), y(1), 2);  // FRONT
-    drawFace(x(1), y(1), 3);  // RIGHT
-    drawFace(x(2), y(1), 4);  // BACK
+    drawFace(x(0), y(1), 1); // LEFT
+    drawFace(x(1), y(1), 2); // FRONT
+    drawFace(x(2), y(1), 3); // RIGHT
+    drawFace(x(3), y(1), 4); // BACK
 
-    drawFace(x(0), y(2), 5);  // DOWN
+    drawFace(x(1), y(2), 5); // DOWN
 }
 
 // ===============================
-// External update API (safe)
+// SAFE UPDATE
 // ===============================
 void CubeNet::setFaceColours(int faceIndex, const std::array<Colour, 9>& colors)
 {
     if (faceIndex < 0 || faceIndex >= 6)
+        return;
+
+    int valid = 0;
+    for (auto c : colors)
+        if (c != Colour::UNKNOWN)
+            valid++;
+
+    if (valid < 1)
         return;
 
     cube.setFace(faceIndex, colors);

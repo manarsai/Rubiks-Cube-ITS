@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <string>
+#include "Moves.h"
 
 // =========================
 // Colour system
@@ -10,17 +11,10 @@ enum class Colour {
 };
 
 // =========================
-// Move (unchanged for now)
-// =========================
-struct Move {
-    std::array<int, 54> perm;
-};
-
-// =========================
 // Face indexing system
 // =========================
 enum Face {
-    UP = 0,
+    UP,
     LEFT,
     FRONT,
     RIGHT,
@@ -67,6 +61,8 @@ public:
     // =========================
     // Moves
     // =========================
+  
+
     void applyMove(const Move& m);
 
     // =========================

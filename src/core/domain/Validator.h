@@ -1,17 +1,19 @@
 #pragma once
+
 #include <array>
 #include "Cube.h"
 
 class Validator
 {
 public:
-    // =========================
-    // FACE VALIDATION (scan input)
-    // =========================
+    // ===== scanning stage =====
     static bool isValidFace(const std::array<Colour, 9>& face);
+    static bool isScanSafe(const std::array<Colour, 9>& face);
 
-    // =========================
-    // CUBE VALIDATION (full state)
-    // =========================
+    // ===== cube stage =====
+    static bool isCubeComplete(const Cube& cube);
     static bool isValidCube(const Cube& cube);
+
+private:
+    static bool isCompleteFace(const std::array<Colour, 9>& face);
 };

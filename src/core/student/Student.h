@@ -2,7 +2,7 @@
 #include <string>
 #include <map>
 #include <chrono>
-#include "../tutor/Stages.h"
+#include "../domain/Stages.h"
 
 struct StageStats
 {
