@@ -336,5 +336,5 @@ void cubeView::mouseReleaseEvent(QMouseEvent* event)
 
 void cubeView::testMoves()
 {
-    setMoves({ "R","D"});
+    setMoves({ "R","D","F","B","R", "R'"});
 }

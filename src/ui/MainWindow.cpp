@@ -414,7 +414,7 @@ if (result.finished)
         currentFace,
         cubeState,
         result.stageValue,
-        result.solutionText,
+        result.message,   // ? correct field now
         solverMode
     );
 }
@@ -462,24 +462,41 @@ if (result.finished)
     updatePreviews(stage);
 
     scanInstruction->setText("Cube scanned successfully");
+
     if (solverMode)
     {
-        // ? Solver mode ? animate solution
-        QString guidanceText = QString::fromStdString(result.solutionText);
-        guidanceLabel->setText(guidanceText);
+        std::vector<std::string> moves = result.moves;
 
-        std::vector<std::string> moves;
-        std::stringstream ss(result.solutionText);
-        std::string move;
+        if (moves.empty())
+        {
+            solverOutputLabel->setText("Solver returned no moves.");
+            guidanceLabel->setText("Solver failed to generate solution.");
+            return;
+        }
 
-        while (ss >> move)
-            moves.push_back(move);
+        // =========================
+        // SHOW SOLVER OUTPUT
+        // =========================
+        QString moveText;
 
+        for (const auto& m : moves)
+        {
+            moveText += QString::fromStdString(m) + " ";
+        }
+
+        solverOutputLabel->setText(moveText.trimmed());
+
+        // optional message (if you want it separate)
+        if (!result.message.empty())
+            guidanceLabel->setText(QString::fromStdString(result.message));
+
+        // =========================
+        // ANIMATE CUBE
+        // =========================
         cubeMain->setMoves(moves);
     }
     else
     {
-        // ? Tutoring mode ? just verify stage
         guidanceLabel->setText(
             "Scan complete.\n\n"
             "Stage detected: " + stageName +
@@ -487,18 +504,9 @@ if (result.finished)
         );
     }
 
-    // ?? NEW: animate the moves
-    std::vector<std::string> moves;
-    std::stringstream ss(result.solutionText);
-    std::string move;
-
-    while (ss >> move)
-    {
-        moves.push_back(move);
-    }
 
     // send moves to cube renderer
-    cubeMain->setMoves(moves);
+    //cubeMain->setMoves(moves);
 
 
     // =====================================================
@@ -685,7 +693,7 @@ void MainWindow::setupConnections()
             currentFace = face;
             currentStage = stage;
             currentInstruction = instruction;
-            solverMode = solver;
+          
 
             // =========================
             // UPDATE UI SAFELY
@@ -717,15 +725,18 @@ void MainWindow::setupConnections()
                 std::string state;
                 int stage;
                 std::string instruction;
-                
+                bool loadedSolverMode; // TEMP variable (important!)
 
-                if (Database::getInstance().loadSession(face, state, stage, instruction, solverMode))
+                // Load session WITHOUT overwriting current mode
+                if (Database::getInstance().loadSession(face, state, stage, instruction, loadedSolverMode))
                 {
                     stageBar->setValue(stage);
-                    guidanceLabel->setText(QString::fromStdString(instruction));
 
-                    this->solverMode = solverMode;
+                    if (!instruction.empty())
+                        guidanceLabel->setText(QString::fromStdString(instruction));
                 }
+
+                // ? DO NOT TOUCH solverMode HERE
 
                 QString name = QString::fromStdString(Database::getInstance().getUserName());
                 userLabel->setText(name);

@@ -25,10 +25,10 @@ public:
         bool success = true;
         bool finished = false;
 
-        std::string message;
-
+        
         int stageValue = 0;
-        std::string solutionText;
+        std::vector<std::string> moves;
+        std::string message;
 
     };
 

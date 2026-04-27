@@ -156,7 +156,7 @@ AppController::ScanResult AppController::processScan(
 
     result.stageValue = tutorResult.stageValue;
     result.message = tutorResult.message;
-    result.solutionText = tutorResult.instructionText;
+    result.moves = solver.solveWhiteCross(cube);
 
     // =====================================================
     // 9. RESET
