@@ -1,116 +1,220 @@
 #include "Database.h"
-#include <iostream>
 #include <QCoreApplication>
+#include <iostream>
+#include <stdexcept>
+#include <QDir>
+#include <QStandardPaths>
+
+// =========================
+// RAII DELETERS
+// =========================
+void Database::SqliteDeleter::operator()(sqlite3* db) const
+{
+    if (db) sqlite3_close(db);
+}
+
+void Database::SqliteDeleter::operator()(sqlite3_stmt* stmt) const
+{
+    if (stmt) sqlite3_finalize(stmt);
+}
 
 // =========================
 // SINGLETON
 // =========================
-Database& Database::getInstance()
+Database& Database::instance()
 {
-    static Database instance;
-    return instance;
+    static Database inst;
+    return inst;
 }
 
 // =========================
-// OPEN DB
+// LOG
 // =========================
-bool Database::open()
+void Database::log(const std::string& msg)
 {
-    QString dbPath = QCoreApplication::applicationDirPath() + "/rubiksdb.db";
+    std::cout << "[DB] " << msg << std::endl;
+}
 
-    std::cout << "DB PATH: " << dbPath.toStdString() << "\n";
+// =========================
+// OPEN / CLOSE
+// =========================
 
-    int rc = sqlite3_open(dbPath.toStdString().c_str(), &db);
+void Database::open()
+{
+    QString dbDir = "C:/finalyearproject/RUBIKSCUBE_ITS/src/data";
+
+    // ensure folder exists
+    QDir dir(dbDir);
+    if (!dir.exists())
+        dir.mkpath(".");
+
+    QString path = dbDir + "/rubiksdb.db";
+
+    sqlite3* raw = nullptr;
+
+    if (sqlite3_open(path.toStdString().c_str(), &raw) != SQLITE_OK)
+        throw std::runtime_error("Failed to open DB");
+
+    db_.reset(raw);
+
+    log("Opened database at: " + path.toStdString());
+}
+
+void Database::close()
+{
+    db_.reset();
+    log("Closed database");
+}
+
+// =========================
+// EXEC / PREPARE
+// =========================
+void Database::exec(const std::string& sql)
+{
+    if (!db_)
+        throw std::runtime_error("Database not open");
+
+    char* err = nullptr;
+
+    if (sqlite3_exec(db_.get(), sql.c_str(), nullptr, nullptr, &err) != SQLITE_OK)
+    {
+        std::string msg = err ? err : "SQL error";
+        sqlite3_free(err);
+        throw std::runtime_error(msg);
+    }
+}
+
+Database::StmtPtr Database::prepare(const std::string& sql)
+{
+    sqlite3_stmt* stmt = nullptr;
+
+    int rc = sqlite3_prepare_v2(db_.get(), sql.c_str(), -1, &stmt, nullptr);
 
     if (rc != SQLITE_OK)
     {
-        std::cout << "DB OPEN FAILED\n";
-        db = nullptr;
-        return false;
+        std::cout << "SQL PREPARE FAILED: "
+            << sqlite3_errmsg(db_.get())
+            << std::endl;
+
+        std::cout << "QUERY: " << sql << std::endl;
+
+        throw std::runtime_error("Prepare failed");
     }
 
-    std::cout << "DB OPEN SUCCESS\n";
-    return true;
+    return StmtPtr(stmt);
 }
 
 // =========================
-// CLOSE DB
+// TRANSACTIONS
 // =========================
-void Database::close()
-{
-    if (db)
-    {
-        sqlite3_close(db);
-        db = nullptr;
-    }
-}
+void Database::begin() { exec("BEGIN TRANSACTION;"); }
+void Database::commit() { exec("COMMIT;"); }
+void Database::rollback() { exec("ROLLBACK;"); }
 
 // =========================
-// INIT TABLES (UPDATED)
+// TABLES
 // =========================
 void Database::initTables()
 {
-    if (!db) return;
+    exec(R"(
+        CREATE TABLE IF NOT EXISTS session (
+            id INTEGER PRIMARY KEY,
+            current_face INTEGER,
+            cube_state TEXT,
+            stage INTEGER,
+            instruction TEXT,
+            solver_mode INTEGER
+        );
 
-    const char* sql =
-        "CREATE TABLE IF NOT EXISTS session ("
-        "id INTEGER PRIMARY KEY,"
-        "current_face INTEGER,"
-        "cube_state TEXT,"
-        "stage INTEGER,"
-        "instruction TEXT,"
-        "solver_mode INTEGER);"
+        CREATE TABLE IF NOT EXISTS app_settings (
+            id INTEGER PRIMARY KEY,
+            user_name TEXT
+        );
 
-        "CREATE TABLE IF NOT EXISTS app_settings ("
-        "id INTEGER PRIMARY KEY,"
-        "user_name TEXT);"
+        CREATE TABLE IF NOT EXISTS stage_stats (
+            stage INTEGER PRIMARY KEY,
+            success INTEGER,
+            fail INTEGER,
+            solver INTEGER,
+            time REAL
+        );
+    )");
 
-        "CREATE TABLE IF NOT EXISTS stage_stats ("
-        "stage INTEGER PRIMARY KEY,"
-        "success INTEGER,"
-        "fail INTEGER,"
-        "solver INTEGER,"
-        "time REAL);";
+    log("Tables initialized");
+}
 
-    char* err = nullptr;
-    sqlite3_exec(db, sql, nullptr, nullptr, &err);
+// =========================
+// USER
+// =========================
+void Database::setUserName(const std::string& name)
+{
+    auto stmt = prepare(
+        "INSERT OR REPLACE INTO app_settings (id, user_name) VALUES (1, ?);"
+    );
 
-    if (err)
+    sqlite3_bind_text(stmt.get(), 1, name.c_str(), -1, SQLITE_TRANSIENT);
+
+    int rc = sqlite3_step(stmt.get());
+
+    if (rc != SQLITE_DONE)
     {
-        std::cout << "DB INIT ERROR: " << err << "\n";
-        sqlite3_free(err);
+        std::cout << "SQLITE ERROR: " << sqlite3_errmsg(db_.get()) << std::endl;
+        return;
+    }
+}
+
+std::optional<std::string> Database::getUserName()
+{
+    auto stmt = prepare("SELECT user_name FROM app_settings WHERE id = 1;");
+
+    if (sqlite3_step(stmt.get()) == SQLITE_ROW)
+    {
+        const unsigned char* txt = sqlite3_column_text(stmt.get(), 0);
+        return txt ? reinterpret_cast<const char*>(txt) : "";
+    }
+
+    return std::nullopt;
+}
+
+// =========================
+// SESSION SAVE (STRUCT)
+// =========================
+void Database::saveSession(const Session& s)
+{
+    begin();
+
+    try
+    {
+        auto stmt = prepare(R"(
+            INSERT INTO session (id, current_face, cube_state, stage, instruction, solver_mode)
+            VALUES (1, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                current_face=excluded.current_face,
+                cube_state=excluded.cube_state,
+                stage=excluded.stage,
+                instruction=excluded.instruction,
+                solver_mode=excluded.solver_mode;
+        )");
+
+        sqlite3_bind_int(stmt.get(), 1, s.face);
+        sqlite3_bind_text(stmt.get(), 2, s.cubeState.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int(stmt.get(), 3, s.stage);
+        sqlite3_bind_text(stmt.get(), 4, s.instruction.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int(stmt.get(), 5, s.solverMode);
+
+        sqlite3_step(stmt.get());
+
+        commit();
+    }
+    catch (...)
+    {
+        rollback();
+        throw;
     }
 }
 
 // =========================
-// USER NAME
-// =========================
-void Database::setUserName(const std::string& name)
-{
-    currentUserName = name;
-
-    if (!db) return;
-
-    const char* sql =
-        "INSERT OR REPLACE INTO app_settings (id, user_name) "
-        "VALUES (1, ?);";
-
-    sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-
-    sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_TRANSIENT);
-
-    sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-}
-
-const std::string& Database::getUserName() const
-{
-    return currentUserName;
-}
-
-// =========================
-// SESSION SAVE (UPDATED)
+// SESSION SAVE (UI FRIENDLY)
 // =========================
 void Database::saveSession(int face,
     const std::string& cubeState,
@@ -118,39 +222,18 @@ void Database::saveSession(int face,
     const std::string& instruction,
     bool solverMode)
 {
-    if (!db) return;
+    Session s;
+    s.face = face;
+    s.cubeState = cubeState;
+    s.stage = stage;
+    s.instruction = instruction;
+    s.solverMode = solverMode;
 
-    const char* sql =
-        "INSERT INTO session (id, current_face, cube_state, stage, instruction, solver_mode) "
-        "VALUES (1, ?, ?, ?, ?, ?) "
-        "ON CONFLICT(id) DO UPDATE SET "
-        "current_face=excluded.current_face, "
-        "cube_state=excluded.cube_state, "
-        "stage=excluded.stage, "
-        "instruction=excluded.instruction, "
-        "solver_mode=excluded.solver_mode;";
-
-    sqlite3_stmt* stmt = nullptr;
-
-    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
-        return;
-
-    sqlite3_bind_int(stmt, 1, face);
-    sqlite3_bind_text(stmt, 2, cubeState.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int(stmt, 3, stage);
-    sqlite3_bind_text(stmt, 4, instruction.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int(stmt, 5, solverMode ? 1 : 0);
-
-    sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-
-    std::cout << "SAVE SESSION -> face=" << face
-        << " stage=" << stage
-        << " solver=" << solverMode << std::endl;
+    saveSession(s);
 }
 
 // =========================
-// SESSION LOAD (UPDATED)
+// SESSION LOAD
 // =========================
 bool Database::loadSession(int& face,
     std::string& cubeState,
@@ -158,190 +241,43 @@ bool Database::loadSession(int& face,
     std::string& instruction,
     bool& solverMode)
 {
-    if (!db) return false;
+    auto stmt = prepare(R"(
+        SELECT current_face, cube_state, stage, instruction, solver_mode
+        FROM session WHERE id = 1;
+    )");
 
-    const char* sql =
-        "SELECT current_face, cube_state, stage, instruction, solver_mode "
-        "FROM session WHERE id = 1;";
-
-    sqlite3_stmt* stmt = nullptr;
-
-    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    if (sqlite3_step(stmt.get()) != SQLITE_ROW)
         return false;
 
-    bool ok = false;
+    face = sqlite3_column_int(stmt.get(), 0);
 
-    if (sqlite3_step(stmt) == SQLITE_ROW)
-    {
-        face = sqlite3_column_int(stmt, 0);
+    const unsigned char* state = sqlite3_column_text(stmt.get(), 1);
+    cubeState = state ? reinterpret_cast<const char*>(state) : "";
 
-        const unsigned char* state = sqlite3_column_text(stmt, 1);
-        cubeState = state ? reinterpret_cast<const char*>(state) : "";
+    stage = sqlite3_column_int(stmt.get(), 2);
 
-        stage = sqlite3_column_int(stmt, 2);
+    const unsigned char* instr = sqlite3_column_text(stmt.get(), 3);
+    instruction = instr ? reinterpret_cast<const char*>(instr) : "";
 
-        const unsigned char* instr = sqlite3_column_text(stmt, 3);
-        instruction = instr ? reinterpret_cast<const char*>(instr) : "";
+    solverMode = sqlite3_column_int(stmt.get(), 4) != 0;
 
-        solverMode = sqlite3_column_int(stmt, 4) != 0;
-
-        ok = true;
-    }
-
-    sqlite3_finalize(stmt);
-    return ok;
-}
-
-bool Database::loadUserName(std::string& name)
-{
-    if (!db) return false;
-
-    const char* sql =
-        "SELECT user_name FROM app_settings WHERE id = 1;";
-
-    sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-
-    if (sqlite3_step(stmt) == SQLITE_ROW)
-    {
-        name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-        sqlite3_finalize(stmt);
-        return true;
-    }
-
-    sqlite3_finalize(stmt);
-    return false;
+    return true;
 }
 
 // =========================
-// RESET SESSION
-// =========================
-void Database::resetSession()
-{
-    if (!db) return;
-
-    sqlite3_exec(db, "DELETE FROM session WHERE id = 1;", nullptr, nullptr, nullptr);
-}
-
-// =========================
-// CHECK SESSION
+// SESSION CHECK
 // =========================
 bool Database::hasSession()
 {
-    if (!db) return false;
-
-    const char* sql = "SELECT COUNT(*) FROM session WHERE id = 1;";
-
-    sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-
-    bool exists = false;
-
-    if (sqlite3_step(stmt) == SQLITE_ROW)
-        exists = sqlite3_column_int(stmt, 0) > 0;
-
-    sqlite3_finalize(stmt);
-    return exists;
+    auto stmt = prepare("SELECT 1 FROM session WHERE id = 1 LIMIT 1;");
+    return sqlite3_step(stmt.get()) == SQLITE_ROW;
 }
 
 // =========================
-// STAGE STATS (UNCHANGED)
+// RESET
 // =========================
-void Database::updateSuccess(int stage)
+void Database::resetSession()
 {
-    if (!db) return;
-
-    const char* sql =
-        "INSERT INTO stage_stats(stage, success, fail, solver, time) "
-        "VALUES(?, 1, 0, 0, 0) "
-        "ON CONFLICT(stage) DO UPDATE SET success = success + 1;";
-
-    sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-
-    sqlite3_bind_int(stmt, 1, stage);
-
-    sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
+    exec("DELETE FROM session WHERE id = 1;");
 }
 
-void Database::updateFailure(int stage)
-{
-    if (!db) return;
-
-    const char* sql =
-        "INSERT INTO stage_stats(stage, success, fail, solver, time) "
-        "VALUES(?, 0, 1, 0, 0) "
-        "ON CONFLICT(stage) DO UPDATE SET fail = fail + 1;";
-
-    sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-
-    sqlite3_bind_int(stmt, 1, stage);
-
-    sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-}
-
-void Database::updateSolverUse(int stage)
-{
-    if (!db) return;
-
-    const char* sql =
-        "INSERT INTO stage_stats(stage, success, fail, solver, time) "
-        "VALUES(?, 0, 0, 1, 0) "
-        "ON CONFLICT(stage) DO UPDATE SET solver = solver + 1;";
-
-    sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-
-    sqlite3_bind_int(stmt, 1, stage);
-
-    sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-}
-
-void Database::updateTime(int stage, double seconds)
-{
-    if (!db) return;
-
-    const char* sql =
-        "INSERT INTO stage_stats(stage, success, fail, solver, time) "
-        "VALUES(?, 0, 0, 0, ?) "
-        "ON CONFLICT(stage) DO UPDATE SET time = time + ?;";
-
-    sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-
-    sqlite3_bind_int(stmt, 1, stage);
-    sqlite3_bind_double(stmt, 2, seconds);
-    sqlite3_bind_double(stmt, 3, seconds);
-
-    sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-}
-
-void Database::getStageStats(int stage,
-    int& success, int& fail, int& solver, double& time)
-{
-    if (!db) return;
-
-    const char* sql =
-        "SELECT success, fail, solver, time "
-        "FROM stage_stats WHERE stage=?;";
-
-    sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-
-    sqlite3_bind_int(stmt, 1, stage);
-
-    if (sqlite3_step(stmt) == SQLITE_ROW)
-    {
-        success = sqlite3_column_int(stmt, 0);
-        fail = sqlite3_column_int(stmt, 1);
-        solver = sqlite3_column_int(stmt, 2);
-        time = sqlite3_column_double(stmt, 3);
-    }
-
-    sqlite3_finalize(stmt);
-}

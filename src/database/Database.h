@@ -1,21 +1,47 @@
 #pragma once
-#include <string>
-#include <sqlite3.h>
 
+#include <sqlite3.h>
+#include <memory>
+#include <string>
+#include <optional>
+#include "../core/student/StageStats.h"
+
+// =========================
+// DATA STRUCTS
+// =========================
+struct Session
+{
+    int face = 0;
+    std::string cubeState;
+    int stage = 0;
+    std::string instruction;
+    bool solverMode = false;
+};
+
+// =========================
+// DATABASE CLASS
+// =========================
 class Database
 {
 public:
-    static Database& getInstance();
+    static Database& instance();
 
-    bool open();
+    void open();
     void close();
 
     void initTables();
 
     // =========================
-    // SESSION (SAVE/RESUME GAME)
+    // USER
     // =========================
-// SESSION
+    void setUserName(const std::string& name);
+    std::optional<std::string> getUserName();
+
+    // =========================
+    // SESSION (NEW CLEAN API)
+    // =========================
+    void saveSession(const Session& s);
+
     void saveSession(int face,
         const std::string& cubeState,
         int stage,
@@ -28,36 +54,40 @@ public:
         std::string& instruction,
         bool& solverMode);
 
-    void resetSession();
     bool hasSession();
+    void resetSession();
 
     // =========================
-    // USER SETTINGS (PERSISTED)
-    // =========================
-    void setUserName(const std::string& name);
-    const std::string& getUserName() const;
-    bool loadUserName(std::string& name);
-
-    // =========================
-    // STAGE STATS (GLOBAL)
+    // STATS
     // =========================
     void updateSuccess(int stage);
     void updateFailure(int stage);
     void updateSolverUse(int stage);
     void updateTime(int stage, double seconds);
 
-    void getStageStats(int stage,
-        int& success,
-        int& fail,
-        int& solver,
-        double& time);
+    std::optional<StageStats> getStageStats(int stage);
 
 private:
     Database() = default;
-    ~Database() = default;
 
-    sqlite3* db = nullptr;
+    void exec(const std::string& sql);
 
-    // cached runtime user name
-    std::string currentUserName;
+    struct SqliteDeleter
+    {
+        void operator()(sqlite3* db) const;
+        void operator()(sqlite3_stmt* stmt) const;
+    };
+
+    using DbPtr = std::unique_ptr<sqlite3, SqliteDeleter>;
+    using StmtPtr = std::unique_ptr<sqlite3_stmt, SqliteDeleter>;
+
+    StmtPtr prepare(const std::string& sql);
+    void begin();
+    void commit();
+    void rollback();
+
+    void log(const std::string& msg);
+
+private:
+    DbPtr db_;
 };

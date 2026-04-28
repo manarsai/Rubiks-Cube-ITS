@@ -102,18 +102,18 @@ const Move D = [] {
     return Move{ p };
     }();
 
-//const Move L = [] {
-//    auto p = makeIdentity();
-//
-//    addCycle(p, { 45, 51, 53, 47 });
-//    addCycle(p, { 46, 48, 52, 50 });
-//
-//    addCycle(p, { 0, 29, 53, 15 });
-//    addCycle(p, { 1, 32, 52, 12 });
-//    addCycle(p, { 2, 35, 51, 9 });
-//
-//    return Move{ p };
-//    }();
+const Move L = [] {
+    auto p = makeIdentity();
+
+    addCycle(p, { 9, 15, 17, 11 });
+    addCycle(p, { 10, 12, 16, 14 });
+
+    addCycle(p, { 38, 45, 18, 0 });
+    addCycle(p, { 41, 48, 21, 3 });
+    addCycle(p, { 44, 51, 24, 6 });
+
+    return Move{ p };
+    }();
 
 // inverse moves
 const Move U_prime = U.inverse();
@@ -121,4 +121,5 @@ const Move R_prime = R.inverse();
 const Move F_prime = F.inverse();
 const Move B_prime = B.inverse();
 const Move D_prime = D.inverse();
-//const Move L_prime = L.inverse();
+const Move L_prime = L.inverse();
+

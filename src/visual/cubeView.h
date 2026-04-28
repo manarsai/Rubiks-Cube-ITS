@@ -78,7 +78,7 @@ private:
     // Rendering
     // =========================
     void drawAllCubies();
-    void drawCubie(const Cubie& c);
+    void drawCubie(const Cubie& c, bool highlight = false);
     void drawCubeEdges();
 
     QColor convertColour(Colour c);

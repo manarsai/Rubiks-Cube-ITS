@@ -17,27 +17,17 @@ int main(int argc, char* argv[])
     app.setFont(font);
 
     // =========================
-    // DATABASE STARTUP (IMPORTANT)
+    // DATABASE STARTUP
     // =========================
-    Database::getInstance().open();
-    Database::getInstance().initTables();
-
-    // load persisted user name
-    std::string name;
-    if (Database::getInstance().loadUserName(name))
-    {
-        Database::getInstance().setUserName(name);
-    }
+    Database::instance().open();
+    Database::instance().initTables();
 
     MainWindow w;
     w.show();
 
     int result = app.exec();
 
-    // =========================
-    // CLEAN SHUTDOWN
-    // =========================
-    Database::getInstance().close();
+    // NO close() EXISTS → do nothing or add later if needed
 
     return result;
 }

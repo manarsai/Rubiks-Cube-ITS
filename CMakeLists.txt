@@ -38,8 +38,7 @@ file(GLOB_RECURSE HEADERS
 # =========================
 add_executable(RUBIKSCUBE_ITS
     ${SOURCES}
-    ${HEADERS}
- "src/core/domain/Stages.h")
+    ${HEADERS} "src/core/domain/Colour.h"  "src/core/domain/FaceDirections.h" "src/core/domain/Types.h" "src/core/domain/CubeUtils.h")
 
 # =========================
 # LINK LIBRARIES

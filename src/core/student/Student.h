@@ -3,14 +3,8 @@
 #include <map>
 #include <chrono>
 #include "../domain/Stages.h"
+#include "StageStats.h"
 
-struct StageStats
-{
-    int successCount = 0;
-    int failCount = 0;
-    int solverUses = 0;
-    double timeSpent = 0.0; // seconds
-};
 
 class Student
 {

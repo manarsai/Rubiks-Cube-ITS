@@ -1,15 +1,13 @@
 #include "StageDefinitions.h"
-#include <iostream>
 
-
-// BASIC UTIL: CROSS CHECK
-static bool isWhiteCrossComplete(const Cube& cube)
+// =====================================================
+// WHITE CROSS CHECK
+// =====================================================
+bool StageDefinitions::isWhiteCrossComplete(const Cube& cube)
 {
-    // down center
     if (cube.at(DOWN, 1, 1) != Colour::WHITE)
         return false;
 
-    // check edges + alignment
     struct Edge {
         int drow, dcol;
         int sideFace;
@@ -35,28 +33,87 @@ static bool isWhiteCrossComplete(const Cube& cube)
     return true;
 }
 
-// PLACEHOLDER: FUTURE STAGES
-static bool isF2LComplete(const Cube& cube)
+
+bool StageDefinitions::isF2LComplete(const Cube& cube)
 {
-    // TODO: implement properly
-    return false;
+    // 1. Bottom face (white)
+    for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++)
+            if (cube.at(DOWN, r, c) != Colour::WHITE)
+                return false;
+
+    struct FaceCheck {
+        int face;
+        Colour center;
+    };
+
+    FaceCheck faces[] = {
+        {FRONT, Colour::RED},
+        {RIGHT, Colour::GREEN},
+        {BACK,  Colour::ORANGE},
+        {LEFT,  Colour::BLUE}
+    };
+
+    // 2. Bottom rows match centers
+    for (const auto& f : faces)
+    {
+        for (int col = 0; col < 3; col++)
+        {
+            if (cube.at(f.face, 2, col) != f.center)
+                return false;
+        }
+    }
+
+    // 3. Middle layer edges
+    for (const auto& f : faces)
+    {
+        if (cube.at(f.face, 1, 0) != f.center)
+            return false;
+
+        if (cube.at(f.face, 1, 2) != f.center)
+            return false;
+    }
+
+    return true;
 }
 
-static bool isOLLComplete(const Cube& cube)
+bool StageDefinitions::isOLLComplete(const Cube& cube)
 {
-    // TODO
-    return false;
+    // Check entire UP face is yellow
+    for (int r = 0; r < 3; r++)
+    {
+        for (int c = 0; c < 3; c++)
+        {
+            if (cube.at(UP, r, c) != Colour::YELLOW)
+                return false;
+        }
+    }
+
+    return true;
 }
 
-static bool isPLLComplete(const Cube& cube)
+bool StageDefinitions::isPLLComplete(const Cube& cube)
 {
-    // TODO
-    return false;
+    for (int face = 0; face < 6; face++)
+    {
+        Colour center = cube.at(face, 1, 1);
+
+        for (int r = 0; r < 3; r++)
+        {
+            for (int c = 0; c < 3; c++)
+            {
+                if (cube.at(face, r, c) != center)
+                    return false;
+            }
+        }
+    }
+
+    return true;
 }
-
-
-// STAGE VALIDATION WRAPPER
-static bool validateStage(Stage stage, const Cube& cube)
+// =====================================================
+// CORE VALIDATOR
+// =====================================================
+bool StageDefinitions::validateStage(Stage stage, const Cube& cube)
 {
     switch (stage)
     {
@@ -64,8 +121,7 @@ static bool validateStage(Stage stage, const Cube& cube)
         return isWhiteCrossComplete(cube);
 
     case Stage::F2L:
-        return isWhiteCrossComplete(cube) &&
-            isF2LComplete(cube);
+        return isWhiteCrossComplete(cube) && isF2LComplete(cube);
 
     case Stage::OLL:
         return isWhiteCrossComplete(cube) &&
@@ -73,31 +129,27 @@ static bool validateStage(Stage stage, const Cube& cube)
             isOLLComplete(cube);
 
     case Stage::PLL:
-        return isWhiteCrossComplete(cube) &&
-            isF2LComplete(cube) &&
-            isOLLComplete(cube) &&
-            isPLLComplete(cube);
-
     case Stage::COMPLETE:
         return isWhiteCrossComplete(cube) &&
             isF2LComplete(cube) &&
             isOLLComplete(cube) &&
             isPLLComplete(cube);
 
-    case Stage::SCRAMBLED:
     default:
         return false;
     }
 }
 
+// =====================================================
 // STAGE DEFINITIONS
+// =====================================================
 static StageDefinition WHITE_CROSS_STAGE =
 {
     Stage::WHITE_CROSS,
     "White Cross",
     [](const Cube& cube)
     {
-        return validateStage(Stage::WHITE_CROSS, cube);
+        return StageDefinitions::validateStage(Stage::WHITE_CROSS, cube);
     }
 };
 
@@ -107,7 +159,7 @@ static StageDefinition F2L_STAGE =
     "F2L",
     [](const Cube& cube)
     {
-        return validateStage(Stage::F2L, cube);
+        return StageDefinitions::validateStage(Stage::F2L, cube);
     }
 };
 
@@ -117,7 +169,7 @@ static StageDefinition OLL_STAGE =
     "OLL",
     [](const Cube& cube)
     {
-        return validateStage(Stage::OLL, cube);
+        return StageDefinitions::validateStage(Stage::OLL, cube);
     }
 };
 
@@ -127,7 +179,7 @@ static StageDefinition PLL_STAGE =
     "PLL",
     [](const Cube& cube)
     {
-        return validateStage(Stage::PLL, cube);
+        return StageDefinitions::validateStage(Stage::PLL, cube);
     }
 };
 
@@ -135,14 +187,15 @@ static StageDefinition SCRAMBLED_STAGE =
 {
     Stage::SCRAMBLED,
     "SCRAMBLED",
-    [](const Cube& cube)
+    [](const Cube&)
     {
-        return true;
+        return false;
     }
 };
 
-
+// =====================================================
 // PUBLIC API
+// =====================================================
 namespace StageDefinitions
 {
     Stage detect(const Cube& cube)
@@ -164,24 +217,12 @@ namespace StageDefinitions
     {
         switch (stage)
         {
-        case Stage::WHITE_CROSS:
-            return WHITE_CROSS_STAGE;
-
-        case Stage::F2L:
-            return F2L_STAGE;
-
-        case Stage::OLL:
-            return OLL_STAGE;
-
-        case Stage::PLL:
-            return PLL_STAGE;
-
-        case Stage::COMPLETE:
-            return PLL_STAGE;
-
-        case Stage::SCRAMBLED:
-        default:
-            return SCRAMBLED_STAGE;
+        case Stage::WHITE_CROSS: return WHITE_CROSS_STAGE;
+        case Stage::F2L:         return F2L_STAGE;
+        case Stage::OLL:         return OLL_STAGE;
+        case Stage::PLL:         return PLL_STAGE;
+        case Stage::COMPLETE:    return PLL_STAGE;
+        default:                 return SCRAMBLED_STAGE;
         }
     }
 }

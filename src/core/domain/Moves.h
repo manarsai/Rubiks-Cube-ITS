@@ -19,14 +19,17 @@ struct Move {
     }
 };
 
+
 extern const Move U;
 extern const Move R;
 extern const Move F;
 extern const Move B;
 extern const Move D;
+extern const Move L;
 
 extern const Move U_prime;
 extern const Move R_prime;
 extern const Move F_prime;
 extern const Move B_prime;
 extern const Move D_prime;
+extern const Move L_prime;

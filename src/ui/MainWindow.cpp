@@ -51,7 +51,7 @@ MainWindow::MainWindow()
 MainWindow::~MainWindow()
 {
     delete controller;
-    Database::getInstance().close();
+    Database::instance().close();
 }
 
 // =====================================================
@@ -377,10 +377,13 @@ void MainWindow::setupCameraScreen()
 
 
 // SCAN LOGIC
+// =====================================================
+// SCAN LOGIC
+// =====================================================
 void MainWindow::handleScan()
 {
-
     std::cout << "HANDLE SCAN CALLED\n";
+
     auto face = cameraWidget->captureFace();
 
     // =====================================================
@@ -388,54 +391,44 @@ void MainWindow::handleScan()
     // =====================================================
     auto result = controller->processScan(face);
 
-    // =====================================================
-    // 2. INVALID SCAN
-    // =====================================================
+    // ONLY RUN IF VALID SCAN
     if (!result.success)
     {
         scanInstruction->setText(QString::fromStdString(result.message));
         return;
     }
 
-    // =====================================================
-    // 3. SAVE STATE (?? NEW FIX)
-    // =====================================================
-    std::string cubeState = controller->getCube().serialize();
+    // increment AFTER successful scan
+    if (result.success)
+    {
+        currentFace++;
 
-if (result.finished)
-{
-    std::cout << "REACHED FINAL SCAN\n";
+        Session s;
+        s.face = currentFace;
+        s.cubeState = controller->getCube().serialize();
+        s.stage = result.stageValue;
+        s.instruction = result.message;
+        s.solverMode = solverMode;
 
-    std::string cubeState = controller->getCube().serialize();
+        Database::instance().saveSession(s);
+    }
 
-    std::cout << "ABOUT TO SAVE SESSION\n";
 
-    Database::getInstance().saveSession(
-        currentFace,
-        cubeState,
-        result.stageValue,
-        result.message,   // ? correct field now
-        solverMode
-    );
-}
 
     // =====================================================
-    // 4. PARTIAL SCANS (faces 1–5)
+    // 5. PARTIAL SCANS (faces 1–5)
     // =====================================================
     if (!result.finished)
     {
         scanInstruction->setText("Face recorded. Continue scanning...");
 
-        currentFace++; // ?? advance scan progress
-
         grid->update();
         QCoreApplication::processEvents();
-
         return;
     }
 
     // =====================================================
-    // 5. FINAL FACE
+    // 6. FINAL FACE
     // =====================================================
     grid->update();
     QCoreApplication::processEvents();
@@ -454,7 +447,7 @@ if (result.finished)
     }
 
     // =====================================================
-    // 6. UPDATE UI
+    // 7. UPDATE UI
     // =====================================================
     stageBar->setValue(result.stageValue);
     stageBar->setFormat(stageName + " (%v/%m)");
@@ -474,25 +467,15 @@ if (result.finished)
             return;
         }
 
-        // =========================
-        // SHOW SOLVER OUTPUT
-        // =========================
         QString moveText;
-
         for (const auto& m : moves)
-        {
             moveText += QString::fromStdString(m) + " ";
-        }
 
         solverOutputLabel->setText(moveText.trimmed());
 
-        // optional message (if you want it separate)
         if (!result.message.empty())
             guidanceLabel->setText(QString::fromStdString(result.message));
 
-        // =========================
-        // ANIMATE CUBE
-        // =========================
         cubeMain->setMoves(moves);
     }
     else
@@ -504,23 +487,18 @@ if (result.finished)
         );
     }
 
-
-    // send moves to cube renderer
-    //cubeMain->setMoves(moves);
-
-
     // =====================================================
-    // 7. RESET SCAN TRACKING
+    // 8. RESET FACE TRACKING
     // =====================================================
     currentFace = 0;
 
     // =====================================================
-    // 8. TRANSITION BACK TO MAIN
+    // 9. RETURN TO MAIN
     // =====================================================
     cameraWidget->stopCamera();
 
-    cubeMain->update();   // ensure 3D cube updates
-    cubeStart->update();  // ensure start cube updates
+    cubeMain->update();
+    cubeStart->update();
 
     stack->setCurrentWidget(mainScreen);
 }
@@ -567,7 +545,7 @@ void MainWindow::setupConnections()
 {
     connect(newButton, &QPushButton::clicked, this, [this]()
         {
-            Database::getInstance().resetSession();
+            Database::instance().resetSession();
             resetScan();
             stack->setCurrentWidget(nameScreen);
         });
@@ -575,27 +553,26 @@ void MainWindow::setupConnections()
 
     connect(startButton, &QPushButton::clicked, this, [this]()
         {
-            QString name = nameInput->text().trimmed();
-
-            if (name.isEmpty())
+            try
             {
-                QMessageBox::warning(this, "Invalid Name", "Please enter a name.");
-                return;
+                QString name = nameInput->text().trimmed();
+
+                if (name.isEmpty())
+                {
+                    QMessageBox::warning(this, "Invalid Name", "Please enter a name.");
+                    return;
+                }
+
+                Database::instance().setUserName(name.toStdString());
+
+                userLabel->setText(name);
+
+                stack->setCurrentWidget(mainScreen);
             }
-
-            // ? SAVE NAME (this replaces your old student DB calls)
-            Database::getInstance().setUserName(name.toStdString());
-            userLabel->setText(name);
-
-            // reset game state
-         
-   
-
-            stageBar->setValue(0);
-            solverOutputLabel->setText("No solution yet");
-
-            // go to game
-            stack->setCurrentWidget(mainScreen);
+            catch (const std::exception& e)
+            {
+                QMessageBox::critical(this, "Database Error", e.what());
+            }
         });
 
     connect(exitButton, &QPushButton::clicked, qApp, &QApplication::quit);
@@ -660,21 +637,14 @@ void MainWindow::setupConnections()
             std::string instruction;
             bool solver = false;
 
-            // =========================
-            // LOAD SESSION
-            // =========================
-            bool ok = Database::getInstance().loadSession(
+            bool ok = Database::instance().loadSession(
                 face,
                 state,
                 stage,
                 instruction,
                 solver
             );
-            std::cout << "LOAD SESSION RESULT = " << ok << std::endl;
 
-            // =========================
-            // HANDLE MISSING SAVE
-            // =========================
             if (!ok)
             {
                 QMessageBox::information(
@@ -685,19 +655,13 @@ void MainWindow::setupConnections()
                 return;
             }
 
-            // =========================
-            // APPLY LOADED STATE
-            // =========================
+            // restore cube
             controller->loadState(state);
 
             currentFace = face;
             currentStage = stage;
-            currentInstruction = instruction;
-          
+            solverMode = solver;
 
-            // =========================
-            // UPDATE UI SAFELY
-            // =========================
             stageBar->setValue(stage);
 
             if (!instruction.empty())
@@ -709,26 +673,21 @@ void MainWindow::setupConnections()
             cubeMain->update();
             cubeStart->update();
 
-            // =========================
-            // GO TO MAIN SCREEN
-            // =========================
             stack->setCurrentWidget(mainScreen);
-
-
         });
 
     connect(stack, &QStackedWidget::currentChanged, this, [this](int)
         {
             if (stack->currentWidget() == mainScreen)
             {
-                int face;
+                int face = 0;
                 std::string state;
-                int stage;
+                int stage = 0;
                 std::string instruction;
-                bool loadedSolverMode; // TEMP variable (important!)
+                bool loadedSolverMode = false;
 
-                // Load session WITHOUT overwriting current mode
-                if (Database::getInstance().loadSession(face, state, stage, instruction, loadedSolverMode))
+                // Load session
+                if (Database::instance().loadSession(face, state, stage, instruction, loadedSolverMode))
                 {
                     stageBar->setValue(stage);
 
@@ -736,10 +695,19 @@ void MainWindow::setupConnections()
                         guidanceLabel->setText(QString::fromStdString(instruction));
                 }
 
-                // ? DO NOT TOUCH solverMode HERE
+                // =========================
+                // USER NAME (FIXED)
+                // =========================
+                auto nameOpt = Database::instance().getUserName();
 
-                QString name = QString::fromStdString(Database::getInstance().getUserName());
-                userLabel->setText(name);
+                std::string name = "Guest";
+
+                if (nameOpt.has_value())
+                {
+                    name = nameOpt.value();
+                }
+
+                userLabel->setText(QString::fromStdString(name));
             }
         });
 
