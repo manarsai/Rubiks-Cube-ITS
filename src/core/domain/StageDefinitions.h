@@ -1,28 +1,28 @@
 #pragma once
 
-#include "Cube.h"
+#include "../domain/types.h"
 #include "../domain/Stages.h"
-
-// One stage rule
-struct StageDefinition
-{
-    Stage stage;
-    const char* name;
-
-    bool (*isComplete)(const Cube& cube);
-};
+#include "../domain/Colour.h"
 
 namespace StageDefinitions
 {
+    struct StageDefinition
+    {
+        Stage stage;
+        const char* name;
+
+        bool (*isComplete)(const State& state);
+    };
+
+    // core API
     const StageDefinition& get(Stage stage);
-    Stage detect(const Cube& cube);
+    Stage detect(const State& state);
 
-    // ? single source of truth functions
-    bool isWhiteCrossComplete(const Cube& cube);
-    bool isF2LComplete(const Cube& cube);
-    bool isOLLComplete(const Cube& cube);
-    bool isPLLComplete(const Cube& cube);
+    bool validateStage(Stage stage, const State& state);
 
-    // ? shared validator used internally
-    bool validateStage(Stage stage, const Cube& cube);
+    // checks
+    bool isWhiteCrossComplete(const State& state);
+    bool isF2LComplete(const State& state);
+    bool isOLLComplete(const State& state);
+    bool isPLLComplete(const State& state);
 }

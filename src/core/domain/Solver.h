@@ -1,32 +1,45 @@
 #pragma once
 
-#include "../domain/Cube.h"
-#include "../domain/StageDefinitions.h"
-
 #include <vector>
 #include <string>
-#include <array>
+
+#include "StageDefinitions.h"
+#include "Cube.h"
+#include "Colour.h"
 
 class Solver
 {
 public:
-    // =========================
-    // GENERIC STAGE SOLVER
-    // =========================
-    std::vector<std::string> solveToStage(const Cube& cube, Stage targetStage);
+    Solver() = default;
+    ~Solver() = default;
 
     // =========================
-    // RECOVERY SYSTEM
+    // IDA* STAGE SOLVER
+    // =========================
+    std::vector<std::string> solveToStage(
+        const Cube& cube,
+        Stage targetStage
+    );
+
+    // =========================
+    // RECOVERY ENTRY POINT
     // =========================
     std::vector<std::string> recover(const Cube& cube);
 
     // =========================
-    // HEURISTIC (stage-aware)
+    // HEURISTIC (used by IDA*)
     // =========================
-    int heuristic(const std::array<Colour, 54>& state, Stage stage);
+    int heuristic(const Cube& cube, Stage stage) const;
 
+private:
     // =========================
-    // DEBUG
+    // FUTURE EXTENSIONS (optional)
     // =========================
-    void testMoveInverses();
+    // These are intentionally left out until needed for F2L/OLL optimizations.
+
+    /*
+    bool isEdgeCorrect(int edgeIndex, const Cube& cube) const;
+    bool isEdgeOriented(int edgeIndex, const Cube& cube) const;
+    bool isValidTransition(const Cube& cube, Stage targetStage) const;
+    */
 };

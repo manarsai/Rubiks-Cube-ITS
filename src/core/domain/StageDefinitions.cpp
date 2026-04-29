@@ -1,20 +1,32 @@
 #include "StageDefinitions.h"
+#include "FaceDirections.h"
+#include "Types.h"
+
+// =========================
+// INDEX HELPER
+// =========================
+static inline int idx(int face, int r, int c)
+{
+    return face * 9 + r * 3 + c;
+}
 
 // =====================================================
-// WHITE CROSS CHECK
+// WHITE CROSS
 // =====================================================
-bool StageDefinitions::isWhiteCrossComplete(const Cube& cube)
+bool StageDefinitions::isWhiteCrossComplete(const State& s)
 {
-    if (cube.at(DOWN, 1, 1) != Colour::WHITE)
+    if (s[idx(DOWN, 1, 1)] != Colour::WHITE)
         return false;
 
-    struct Edge {
+    struct Edge
+    {
         int drow, dcol;
         int sideFace;
         Colour expectedSide;
     };
 
-    Edge edges[] = {
+    Edge edges[] =
+    {
         {0, 1, FRONT, Colour::RED},
         {1, 2, RIGHT, Colour::GREEN},
         {1, 0, LEFT,  Colour::BLUE},
@@ -23,117 +35,105 @@ bool StageDefinitions::isWhiteCrossComplete(const Cube& cube)
 
     for (const auto& e : edges)
     {
-        if (cube.at(DOWN, e.drow, e.dcol) != Colour::WHITE)
+        if (s[idx(DOWN, e.drow, e.dcol)] != Colour::WHITE)
             return false;
 
-        if (cube.at(e.sideFace, 2, 1) != e.expectedSide)
+        if (s[idx(e.sideFace, 2, 1)] != e.expectedSide)
             return false;
     }
 
     return true;
 }
 
-
-bool StageDefinitions::isF2LComplete(const Cube& cube)
+// =====================================================
+// F2L
+// =====================================================
+bool StageDefinitions::isF2LComplete(const State& s)
 {
-    // 1. Bottom face (white)
     for (int r = 0; r < 3; r++)
         for (int c = 0; c < 3; c++)
-            if (cube.at(DOWN, r, c) != Colour::WHITE)
+            if (s[idx(DOWN, r, c)] != Colour::WHITE)
                 return false;
 
-    struct FaceCheck {
+    struct FaceCheck
+    {
         int face;
         Colour center;
     };
 
-    FaceCheck faces[] = {
+    FaceCheck faces[] =
+    {
         {FRONT, Colour::RED},
         {RIGHT, Colour::GREEN},
         {BACK,  Colour::ORANGE},
         {LEFT,  Colour::BLUE}
     };
 
-    // 2. Bottom rows match centers
     for (const auto& f : faces)
     {
-        for (int col = 0; col < 3; col++)
-        {
-            if (cube.at(f.face, 2, col) != f.center)
-                return false;
-        }
-    }
-
-    // 3. Middle layer edges
-    for (const auto& f : faces)
-    {
-        if (cube.at(f.face, 1, 0) != f.center)
-            return false;
-
-        if (cube.at(f.face, 1, 2) != f.center)
-            return false;
+        for (int r = 0; r < 3; r++)
+            for (int c = 0; c < 3; c++)
+                if (s[idx(f.face, r, c)] != f.center)
+                    return false;
     }
 
     return true;
 }
 
-bool StageDefinitions::isOLLComplete(const Cube& cube)
+// =====================================================
+// OLL
+// =====================================================
+bool StageDefinitions::isOLLComplete(const State& s)
 {
-    // Check entire UP face is yellow
     for (int r = 0; r < 3; r++)
-    {
         for (int c = 0; c < 3; c++)
-        {
-            if (cube.at(UP, r, c) != Colour::YELLOW)
+            if (s[idx(UP, r, c)] != Colour::YELLOW)
                 return false;
-        }
-    }
 
     return true;
 }
 
-bool StageDefinitions::isPLLComplete(const Cube& cube)
+// =====================================================
+// PLL (FULL CUBE SOLVED CHECK)
+// =====================================================
+bool StageDefinitions::isPLLComplete(const State& s)
 {
     for (int face = 0; face < 6; face++)
     {
-        Colour center = cube.at(face, 1, 1);
+        Colour center = s[idx(face, 1, 1)];
 
         for (int r = 0; r < 3; r++)
-        {
             for (int c = 0; c < 3; c++)
-            {
-                if (cube.at(face, r, c) != center)
+                if (s[idx(face, r, c)] != center)
                     return false;
-            }
-        }
     }
 
     return true;
 }
+
 // =====================================================
-// CORE VALIDATOR
+// VALIDATION (FIXED LOGIC FLOW)
 // =====================================================
-bool StageDefinitions::validateStage(Stage stage, const Cube& cube)
+bool StageDefinitions::validateStage(Stage stage, const State& s)
 {
     switch (stage)
     {
     case Stage::WHITE_CROSS:
-        return isWhiteCrossComplete(cube);
+        return isWhiteCrossComplete(s);
 
     case Stage::F2L:
-        return isWhiteCrossComplete(cube) && isF2LComplete(cube);
+        return isWhiteCrossComplete(s) && isF2LComplete(s);
 
     case Stage::OLL:
-        return isWhiteCrossComplete(cube) &&
-            isF2LComplete(cube) &&
-            isOLLComplete(cube);
+        return isF2LComplete(s) && isOLLComplete(s);
 
     case Stage::PLL:
+        return isF2LComplete(s)
+            && isOLLComplete(s)
+            && isPLLComplete(s);
+
     case Stage::COMPLETE:
-        return isWhiteCrossComplete(cube) &&
-            isF2LComplete(cube) &&
-            isOLLComplete(cube) &&
-            isPLLComplete(cube);
+        return isPLLComplete(s);
 
     default:
         return false;
@@ -141,53 +141,66 @@ bool StageDefinitions::validateStage(Stage stage, const Cube& cube)
 }
 
 // =====================================================
+// STAGE DETECTION (FIXED ORDER - MOST IMPORTANT)
+// =====================================================
+Stage StageDefinitions::detect(const State& s)
+{
+    if (isPLLComplete(s)) return Stage::COMPLETE;
+    if (isOLLComplete(s)) return Stage::PLL;
+    if (isF2LComplete(s)) return Stage::OLL;
+    if (isWhiteCrossComplete(s)) return Stage::F2L;
+
+    return Stage::WHITE_CROSS;
+}
+
+// =====================================================
 // STAGE DEFINITIONS
 // =====================================================
-static StageDefinition WHITE_CROSS_STAGE =
+static StageDefinitions::StageDefinition WHITE_CROSS_STAGE =
 {
     Stage::WHITE_CROSS,
     "White Cross",
-    [](const Cube& cube)
+    [](const State& s)
     {
-        return StageDefinitions::validateStage(Stage::WHITE_CROSS, cube);
+        return StageDefinitions::validateStage(Stage::WHITE_CROSS, s);
     }
 };
 
-static StageDefinition F2L_STAGE =
+static StageDefinitions::StageDefinition F2L_STAGE =
 {
     Stage::F2L,
     "F2L",
-    [](const Cube& cube)
+    [](const State& s)
     {
-        return StageDefinitions::validateStage(Stage::F2L, cube);
+        return StageDefinitions::validateStage(Stage::F2L, s);
     }
 };
 
-static StageDefinition OLL_STAGE =
+static StageDefinitions::StageDefinition OLL_STAGE =
 {
     Stage::OLL,
     "OLL",
-    [](const Cube& cube)
+    [](const State& s)
     {
-        return StageDefinitions::validateStage(Stage::OLL, cube);
+        return StageDefinitions::validateStage(Stage::OLL, s);
     }
 };
 
-static StageDefinition PLL_STAGE =
+static StageDefinitions::StageDefinition PLL_STAGE =
 {
     Stage::PLL,
     "PLL",
-    [](const Cube& cube)
+    [](const State& s)
     {
-        return StageDefinitions::validateStage(Stage::PLL, cube);
+        return StageDefinitions::validateStage(Stage::PLL, s);
     }
 };
 
-static StageDefinition SCRAMBLED_STAGE =
+static StageDefinitions::StageDefinition SCRAMBLED_STAGE =
 {
     Stage::SCRAMBLED,
     "SCRAMBLED",
-    [](const Cube&)
+    [](const State&)
     {
         return false;
     }
@@ -198,21 +211,6 @@ static StageDefinition SCRAMBLED_STAGE =
 // =====================================================
 namespace StageDefinitions
 {
-    Stage detect(const Cube& cube)
-    {
-        bool cross = isWhiteCrossComplete(cube);
-        bool f2l = cross && isF2LComplete(cube);
-        bool oll = f2l && isOLLComplete(cube);
-        bool pll = oll && isPLLComplete(cube);
-
-        if (pll) return Stage::COMPLETE;
-        if (oll) return Stage::PLL;
-        if (f2l) return Stage::F2L;
-        if (cross) return Stage::WHITE_CROSS;
-
-        return Stage::SCRAMBLED;
-    }
-
     const StageDefinition& get(Stage stage)
     {
         switch (stage)
@@ -221,7 +219,7 @@ namespace StageDefinitions
         case Stage::F2L:         return F2L_STAGE;
         case Stage::OLL:         return OLL_STAGE;
         case Stage::PLL:         return PLL_STAGE;
-        case Stage::COMPLETE:    return PLL_STAGE;
+        case Stage::COMPLETE:    return PLL_STAGE; // solved cube == PLL complete
         default:                 return SCRAMBLED_STAGE;
         }
     }

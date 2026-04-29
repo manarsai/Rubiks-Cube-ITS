@@ -21,24 +21,22 @@ find_package(OpenCV REQUIRED)
 find_package(SQLite3 REQUIRED)
 
 # =========================
-# SOURCE FILES (AUTO DISCOVERY)
+# SOURCE FILES (SAFE VERSION)
 # =========================
-file(GLOB_RECURSE SOURCES
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/app/*.cpp
     ${CMAKE_SOURCE_DIR}/src/*.cpp
 )
 
-file(GLOB_RECURSE HEADERS
-    ${CMAKE_SOURCE_DIR}/app/*.h
-    ${CMAKE_SOURCE_DIR}/src/*.h
-)
+# ⚠️ DO NOT include headers in the executable
+# They are not compiled and only confuse the build system.
 
 # =========================
 # EXECUTABLE
 # =========================
 add_executable(RUBIKSCUBE_ITS
     ${SOURCES}
-    ${HEADERS} "src/core/domain/Colour.h"  "src/core/domain/FaceDirections.h" "src/core/domain/Types.h" "src/core/domain/CubeUtils.h")
+)
 
 # =========================
 # LINK LIBRARIES
@@ -49,8 +47,8 @@ target_link_libraries(RUBIKSCUBE_ITS PRIVATE
     Qt6::Widgets
     Qt6::OpenGLWidgets
     OpenGL::GL
-    SQLite::SQLite3
     ${OpenCV_LIBS}
+    SQLite::SQLite3
 )
 
 # =========================
@@ -59,3 +57,8 @@ target_link_libraries(RUBIKSCUBE_ITS PRIVATE
 target_include_directories(RUBIKSCUBE_ITS PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
+
+# =========================
+# CLEAN BUILD SAFETY FLAG
+# =========================
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

@@ -6,6 +6,7 @@
 #include "CubeNet.h"
 #include "CameraWidget.h"
 #include "Styles.h"
+#include "../core/domain/Solver.h"
 
 #include <QStackedWidget>
 #include <QPushButton>
@@ -26,6 +27,9 @@ MainWindow::MainWindow()
 
     stack = new QStackedWidget(this);
     setCentralWidget(stack);
+
+    solver = new Solver();
+
 
     setupStartScreen();
     setupNameScreen();
@@ -340,8 +344,9 @@ void MainWindow::setupCameraScreen()
     cameraScreen = new QWidget();
     QVBoxLayout* layout = new QVBoxLayout(cameraScreen);
 
-
-    // ===== CONTENT =====
+    // =====================================================
+    // CONTENT (CAMERA + CUBE NET)
+    // =====================================================
     cameraWidget = new CameraWidget(cameraScreen);
     grid = new CubeNet(controller->getCube(), cameraScreen);
 
@@ -351,87 +356,92 @@ void MainWindow::setupCameraScreen()
     contentLayout->addWidget(cameraWidget, 3);
     contentLayout->addWidget(grid, 2);
 
-    // ===== INSTRUCTION =====
+    // =====================================================
+    // INSTRUCTION LABEL
+    // =====================================================
     scanInstruction = new QLabel("Press SPACE to scan face");
     scanInstruction->setObjectName("scanInstruction");
     scanInstruction->setAlignment(Qt::AlignCenter);
 
-    // ===== BOTTOM BAR =====
+    // =====================================================
+    // BOTTOM BAR (BUTTONS)
+    // =====================================================
     backButton = new QPushButton("Back");
     backButton->setObjectName("backButton");
+
+    QPushButton* completeScanBtn = new QPushButton("Complete Scan");
 
     QWidget* bottomBar = new QWidget();
     QHBoxLayout* bottomLayout = new QHBoxLayout(bottomBar);
 
     bottomLayout->addWidget(backButton);
-    bottomLayout->addStretch();  // keeps both anchored to bottom-left
+    bottomLayout->addWidget(completeScanBtn);
+    bottomLayout->addStretch();
 
-    // ===== LAYOUT =====
+    // =====================================================
+    // LAYOUT
+    // =====================================================
     layout->addWidget(content);
     layout->addWidget(scanInstruction);
     layout->addWidget(bottomBar);
 
     cameraScreen->setFocusPolicy(Qt::StrongFocus);
     cameraScreen->setFocus();
-}
+
+    // =====================================================
+    // CONNECTION (IMPORTANT)
+    // =====================================================
+    connect(completeScanBtn, &QPushButton::clicked, this, [this]()
+        {
+            completeScanAndSolve();
+        });
+};
 
 
-// SCAN LOGIC
-// =====================================================
-// SCAN LOGIC
-// =====================================================
 void MainWindow::handleScan()
 {
     std::cout << "HANDLE SCAN CALLED\n";
 
     auto face = cameraWidget->captureFace();
 
-    // =====================================================
-    // 1. PROCESS SCAN
-    // =====================================================
+    // =========================
+    // PROCESS SCAN (controller owns state)
+    // =========================
     auto result = controller->processScan(face);
 
-    // ONLY RUN IF VALID SCAN
     if (!result.success)
     {
         scanInstruction->setText(QString::fromStdString(result.message));
         return;
     }
 
-    // increment AFTER successful scan
-    if (result.success)
-    {
-        currentFace++;
+    // =========================
+    // SAVE SESSION (controller is source of truth)
+    // =========================
+    Session s;
+    s.cubeState = controller->getCube().serialize();
+    s.stage = result.stageValue;
+    s.instruction = result.message;
 
-        Session s;
-        s.face = currentFace;
-        s.cubeState = controller->getCube().serialize();
-        s.stage = result.stageValue;
-        s.instruction = result.message;
-        s.solverMode = solverMode;
+    // IMPORTANT FIX: do NOT use UI solverMode
+    s.solverMode = controller->isSolverMode();
 
-        Database::instance().saveSession(s);
-    }
+    Database::instance().saveSession(s);
 
-
-
-    // =====================================================
-    // 5. PARTIAL SCANS (faces 1–5)
-    // =====================================================
+    // =========================
+    // PARTIAL SCAN
+    // =========================
     if (!result.finished)
     {
         scanInstruction->setText("Face recorded. Continue scanning...");
-
         grid->update();
-        QCoreApplication::processEvents();
         return;
     }
 
-    // =====================================================
-    // 6. FINAL FACE
-    // =====================================================
+    // =========================
+    // FINAL SCAN UPDATE
+    // =========================
     grid->update();
-    QCoreApplication::processEvents();
 
     Stage stage = static_cast<Stage>(result.stageValue);
 
@@ -446,26 +456,20 @@ void MainWindow::handleScan()
     default:                 stageName = "Scrambled";
     }
 
-    // =====================================================
-    // 7. UPDATE UI
-    // =====================================================
     stageBar->setValue(result.stageValue);
     stageBar->setFormat(stageName + " (%v/%m)");
 
     updatePreviews(stage);
 
-    scanInstruction->setText("Cube scanned successfully");
+    scanInstruction->setText("Scan complete. Press 'Complete Scan'.");
 
-    if (solverMode)
+    // =========================
+    // SOLVER OUTPUT (CLEANED)
+    // =========================
+    if (controller->isSolverMode())
     {
-        std::vector<std::string> moves = result.moves;
-
-        if (moves.empty())
-        {
-            solverOutputLabel->setText("Solver returned no moves.");
-            guidanceLabel->setText("Solver failed to generate solution.");
-            return;
-        }
+        const auto& moves = result.moves;
+        lastSolution = moves;
 
         QString moveText;
         for (const auto& m : moves)
@@ -473,10 +477,11 @@ void MainWindow::handleScan()
 
         solverOutputLabel->setText(moveText.trimmed());
 
-        if (!result.message.empty())
-            guidanceLabel->setText(QString::fromStdString(result.message));
+        if (!result.guidance.empty())
+            guidanceLabel->setText(QString::fromStdString(result.guidance));
 
         cubeMain->setMoves(moves);
+        cubeMain->update();
     }
     else
     {
@@ -487,34 +492,25 @@ void MainWindow::handleScan()
         );
     }
 
-    // =====================================================
-    // 8. RESET FACE TRACKING
-    // =====================================================
-    currentFace = 0;
-
-    // =====================================================
-    // 9. RETURN TO MAIN
-    // =====================================================
     cameraWidget->stopCamera();
 
     cubeMain->update();
     cubeStart->update();
 
-    stack->setCurrentWidget(mainScreen);
+    std::cout << "---- SCAN END ----\n";
 }
 // =====================================================
 // RESET
 // =====================================================
 void MainWindow::resetScan()
 {
-    controller->resetScan();   // you should add this if not already
+    controller->resetScan();
     controller->resetCube();
 
     grid->update();
     cubeMain->update();
     cubeStart->update();
 }
-
 
 void MainWindow::updatePreviews(Stage stage)
 {
@@ -579,7 +575,7 @@ void MainWindow::setupConnections()
 
     connect(scanButton, &QPushButton::clicked, this, [this]()
         {
-            solverMode = false;  // ? tutoring mode
+            controller->setSolverMode(false);
 
             controller->resetScan();
             controller->resetCube();
@@ -597,18 +593,19 @@ void MainWindow::setupConnections()
 
     connect(retryButton, &QPushButton::clicked, this, [this]()
         {
-            solverMode = true;  // ? solver mode
-
-            controller->resetScan();  // optional depending on your logic
+            controller->setSolverMode(true);
+            controller->resetScan();
 
             guidanceLabel->setText(
                 "Retrying stage:\n\n"
                 "• Scan cube again\n"
-                "• Solver will generate moves"
+                "• Solver will generate recovery moves"
             );
 
             stack->setCurrentWidget(cameraScreen);
             cameraWidget->startCamera();
+
+            // IMPORTANT: auto-trigger solve after retry scan completes
         });
 
     connect(backButton, &QPushButton::clicked, this, [this]()
@@ -638,11 +635,7 @@ void MainWindow::setupConnections()
             bool solver = false;
 
             bool ok = Database::instance().loadSession(
-                face,
-                state,
-                stage,
-                instruction,
-                solver
+                face, state, stage, instruction, solver
             );
 
             if (!ok)
@@ -650,24 +643,18 @@ void MainWindow::setupConnections()
                 QMessageBox::information(
                     this,
                     "No Saved Game",
-                    "No previous session found. Start a new game first."
+                    "No previous session found."
                 );
                 return;
             }
 
-            // restore cube
             controller->loadState(state);
-
-            currentFace = face;
-            currentStage = stage;
-            solverMode = solver;
+            controller->setSolverMode(solver);
+  
 
             stageBar->setValue(stage);
 
-            if (!instruction.empty())
-                guidanceLabel->setText(QString::fromStdString(instruction));
-            else
-                guidanceLabel->setText("Resumed session.");
+            guidanceLabel->setText(QString::fromStdString(instruction));
 
             grid->update();
             cubeMain->update();
@@ -713,3 +700,48 @@ void MainWindow::setupConnections()
 
 }
 
+void MainWindow::completeScanAndSolve()
+{
+    cameraWidget->stopCamera();
+
+    if (!solver)
+    {
+        QMessageBox::critical(this, "Error", "Solver not initialized");
+        return;
+    }
+
+    const Cube& cube = controller->getCube();
+
+    Stage current = StageDefinitions::detect(cube.getState());
+    Stage target;
+
+    switch (current)
+    {
+    case Stage::WHITE_CROSS: target = Stage::WHITE_CROSS; break;
+    case Stage::F2L:         target = Stage::WHITE_CROSS; break;
+    case Stage::OLL:         target = Stage::F2L; break;
+    case Stage::PLL:         target = Stage::OLL; break;
+    case Stage::COMPLETE:    target = Stage::PLL; break;
+    default:                 target = Stage::WHITE_CROSS; break;
+    }
+
+    lastSolution = solver->solveToStage(cube, target);
+
+    if (lastSolution.empty())
+    {
+        QMessageBox::warning(this, "Solver", "No solution found");
+        return;
+    }
+
+    QString movesText;
+    for (const auto& m : lastSolution)
+        movesText += QString::fromStdString(m) + " ";
+
+    solverOutputLabel->setText(movesText.trimmed());
+
+    controller->setSolverMode(true);
+    cubeMain->setMoves(lastSolution);
+    cubeMain->update();
+
+    stack->setCurrentWidget(mainScreen);
+}

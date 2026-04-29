@@ -1,9 +1,11 @@
 #include "Moves.h"
 #include <array>
 #include <vector>
+#include "Types.h"
 
-
+// =========================
 // IDENTITY
+// =========================
 static std::array<int, 54> makeIdentity()
 {
     std::array<int, 54> p{};
@@ -12,14 +14,13 @@ static std::array<int, 54> makeIdentity()
     return p;
 }
 
-
+// =========================
 // CYCLE HELPER
+// =========================
 static void addCycle(std::array<int, 54>& p, const std::vector<int>& c)
 {
     for (size_t i = 0; i < c.size(); i++)
-    {
         p[c[i]] = c[(i + 1) % c.size()];
-    }
 }
 
 /*
@@ -32,11 +33,13 @@ index layout:
 45–53 D (White)
 */
 
-// u move (up face, clockwise)
+// =========================
+// MOVES (PHYSICAL CUBE)
+// =========================
+
 const Move U = [] {
     auto p = makeIdentity();
 
-    // reverse cycle direction
     addCycle(p, { 0, 6, 8, 2 });
     addCycle(p, { 1, 3, 7, 5 });
 
@@ -47,7 +50,6 @@ const Move U = [] {
     return Move{ p };
     }();
 
-// r move, (right face, clockwise)
 const Move R = [] {
     auto p = makeIdentity();
 
@@ -61,7 +63,6 @@ const Move R = [] {
     return Move{ p };
     }();
 
-// f move, (front face, clockwise)
 const Move F = [] {
     auto p = makeIdentity();
 
@@ -75,7 +76,6 @@ const Move F = [] {
     return Move{ p };
     }();
 
-// b move, (back face, clockwise)
 const Move B = [] {
     auto p = makeIdentity();
 
@@ -115,7 +115,9 @@ const Move L = [] {
     return Move{ p };
     }();
 
-// inverse moves
+// =========================
+// INVERSE MOVES
+// =========================
 const Move U_prime = U.inverse();
 const Move R_prime = R.inverse();
 const Move F_prime = F.inverse();
@@ -123,3 +125,16 @@ const Move B_prime = B.inverse();
 const Move D_prime = D.inverse();
 const Move L_prime = L.inverse();
 
+// =========================
+// ?? NEW: SOLVER MOVE LIST
+// =========================
+// This does NOT duplicate logic — it only maps names ? existing Move objects
+
+const std::vector<std::pair<std::string, Move>> MOVES = {
+    {"U", U}, {"U'", U_prime},
+    {"D", D}, {"D'", D_prime},
+    {"R", R}, {"R'", R_prime},
+    {"L", L}, {"L'", L_prime},
+    {"F", F}, {"F'", F_prime},
+    {"B", B}, {"B'", B_prime}
+};

@@ -1,213 +1,184 @@
 #include <iostream>
-#include "Solver.h"
-#include "Moves.h"
-#include "Cube.h"
-#include "StageDefinitions.h"
-#include <queue>
-#include <unordered_set>
 #include <vector>
+#include <string>
+#include <limits>
+#include <algorithm>
+
+#include "Cube.h"
+#include "Solver.h"
+#include "StageDefinitions.h"
+#include "Moves.h"
 
 // =========================
-// NODE
+// SETTINGS
 // =========================
-struct Node {
-    std::array<Colour, 54> state{};
-    int g = 0;
-    int h = 0;
-    std::vector<std::string> path;
-};
+static const int INF = std::numeric_limits<int>::max();
+static const int MAX_DEPTH = 20;
+static const int NODE_LIMIT = 200000;
+
+static int nodeCounter = 0;
 
 // =========================
-// PRIORITY QUEUE
+// INVERSE PRUNING
 // =========================
-struct Compare {
-    bool operator()(const Node& a, const Node& b) {
-        return (a.g + a.h) > (b.g + b.h);
-    }
-};
-
-// =========================
-// STATE HASH
-// =========================
-struct StateHash {
-    size_t operator()(const std::array<Colour, 54>& s) const {
-        size_t h = 0;
-        for (auto c : s)
-            h = h * 31 + static_cast<int>(c);
-        return h;
-    }
-};
-
-// =========================
-// RECOVERY TARGET
-// =========================
-static Stage getRecoveryTarget(Stage current)
+static bool isInverse(const std::string& a, const std::string& b)
 {
-    switch (current)
-    {
-    case Stage::WHITE_CROSS: return Stage::WHITE_CROSS;
-    case Stage::F2L:         return Stage::WHITE_CROSS;
-    case Stage::OLL:         return Stage::F2L;
-    case Stage::PLL:         return Stage::OLL;
-    default:                 return Stage::WHITE_CROSS;
-    }
+    return (a == "U" && b == "U'") || (a == "U'" && b == "U") ||
+        (a == "D" && b == "D'") || (a == "D'" && b == "D") ||
+        (a == "R" && b == "R'") || (a == "R'" && b == "R") ||
+        (a == "L" && b == "L'") || (a == "L'" && b == "L") ||
+        (a == "F" && b == "F'") || (a == "F'" && b == "F") ||
+        (a == "B" && b == "B'") || (a == "B'" && b == "B");
 }
 
 // =========================
-// HEURISTIC (simple but stage-aware)
+// HEURISTIC (WHITE CROSS ONLY)
+// WHITE = DOWN FACE
 // =========================
-int Solver::heuristic(const std::array<Colour, 54>& s, Stage stage)
+int Solver::heuristic(const Cube& cube, Stage stage) const
 {
-    Cube temp;
-    temp.setState(s);
-
-    if (StageDefinitions::validateStage(stage, temp))
+    if (stage != Stage::WHITE_CROSS)
         return 0;
 
-    return 10; // simple fallback
-}
+    int misplaced = 0;
 
-// =========================
-// GENERIC STAGE SOLVER
-// =========================
-std::vector<std::string> Solver::solveToStage(const Cube& cube, Stage targetStage)
-{
-    std::priority_queue<Node, std::vector<Node>, Compare> open;
-    std::unordered_set<size_t> visited;
-    StateHash hasher;
-
-    Node start;
-    start.state = cube.getState();
-    start.g = 0;
-    start.h = heuristic(start.state, targetStage);
-
-    open.push(start);
-
-    // =========================
-    // MOVE SET
-    // =========================
-    std::vector<std::pair<std::string, Move>> moves =
-    {
-        {"U",  U}, {"U'", U_prime},
-        {"D",  D}, {"D'", D_prime},
-        {"F",  F}, {"F'", F_prime},
-        {"B",  B}, {"B'", B_prime},
-        {"R",  R}, {"R'", R_prime},
-        //{"L",  L}, {"L'", L_prime} // ? added missing L moves
+    struct Edge {
+        int d_r, d_c;
+        int f, f_r, f_c;
+        Colour expected;
     };
 
-    // =========================
-    // SEARCH LOOP
-    // =========================
-    while (!open.empty())
+    std::vector<Edge> edges = {
+        {0, 1, FRONT, 2, 1, Colour::RED},
+        {2, 1, BACK,  2, 1, Colour::ORANGE},
+        {1, 0, LEFT,  2, 1, Colour::BLUE},
+        {1, 2, RIGHT, 2, 1, Colour::GREEN}
+    };
+
+    for (auto& e : edges)
     {
-        Node current = open.top();
-        open.pop();
+        bool whiteOK = cube.at(DOWN, e.d_r, e.d_c) == Colour::WHITE;
+        bool sideOK = cube.at(e.f, e.f_r, e.f_c) == e.expected;
 
-        size_t key = hasher(current.state);
-        if (visited.count(key))
-            continue;
+        if (!whiteOK)
+            misplaced++;
 
-        visited.insert(key);
-
-        Cube temp;
-        temp.setState(current.state);
-
-        // =========================
-        // GOAL CHECK
-        // =========================
-        if (StageDefinitions::validateStage(targetStage, temp))
-        {
-            std::cout << "Reached stage: " << (int)targetStage << "\n";
-            return current.path;
-        }
-
-        // =========================
-        // DEPTH LIMIT (safety)
-        // =========================
-        if (current.g >= 20)
-            continue;
-
-        // =========================
-        // EXPAND
-        // =========================
-        for (const auto& [name, move] : moves)
-        {
-            // avoid immediate inverse moves
-            if (!current.path.empty())
-            {
-                const std::string& last = current.path.back();
-
-                if ((last == "U" && name == "U'") || (last == "U'" && name == "U") ||
-                    (last == "D" && name == "D'") || (last == "D'" && name == "D") ||
-                    (last == "F" && name == "F'") || (last == "F'" && name == "F") ||
-                    (last == "B" && name == "B'") || (last == "B'" && name == "B") ||
-                    (last == "R" && name == "R'") || (last == "R'" && name == "R") ||
-                    (last == "L" && name == "L'") || (last == "L'" && name == "L"))
-                {
-                    continue;
-                }
-            }
-
-            Node next;
-            next.state = current.state;
-
-            Cube nextCube;
-            nextCube.setState(current.state);
-            nextCube.applyMove(move);
-
-            next.state = nextCube.getState();
-            next.g = current.g + 1;
-            next.h = heuristic(next.state, targetStage);
-            next.path = current.path;
-            next.path.push_back(name);
-
-            open.push(next);
-        }
+        if (!sideOK)
+            misplaced++;
     }
 
-    std::cout << "No solution found for stage recovery.\n";
-    return {};
+    return misplaced;
 }
 
 // =========================
-// RECOVERY ENTRY POINT
+// DFS (IDA* CORE)
+// =========================
+static bool dfs(
+    Cube& cube,
+    Stage target,
+    int g,
+    int threshold,
+    int& nextThreshold,
+    std::vector<std::string>& path,
+    const std::string& prevMove,
+    Solver* solver)
+{
+    nodeCounter++;
+
+    if (nodeCounter > NODE_LIMIT)
+        return false;
+
+    // GOAL CHECK
+    if (StageDefinitions::validateStage(target, cube.getState()))
+        return true;
+
+    int h = solver->heuristic(cube, target);
+    int f = g + h;
+
+    if (f > threshold)
+    {
+        nextThreshold = std::min(nextThreshold, f);
+        return false;
+    }
+
+    if (g >= MAX_DEPTH)
+        return false;
+
+    // ?? NOW USING GLOBAL MOVES TABLE (NO LOCAL DUPLICATION)
+    for (auto& [name, move] : MOVES)
+    {
+        if (!prevMove.empty() && isInverse(prevMove, name))
+            continue;
+
+        Cube next = cube;
+        next.applyMove(move);
+
+        path.push_back(name);
+
+        if (dfs(next, target, g + 1, threshold, nextThreshold, path, name, solver))
+            return true;
+
+        path.pop_back();
+    }
+
+    return false;
+}
+
+// =========================
+// IDA* SOLVER
+// =========================
+std::vector<std::string> Solver::solveToStage(const Cube& startCube, Stage targetStage)
+{
+    nodeCounter = 0;
+
+    int threshold = heuristic(startCube, targetStage);
+
+    while (true)
+    {
+        int nextThreshold = INF;
+        std::vector<std::string> path;
+
+        Cube cube = startCube;
+
+        bool found = dfs(
+            cube,
+            targetStage,
+            0,
+            threshold,
+            nextThreshold,
+            path,
+            "",
+            this
+        );
+
+        if (found)
+            return path;
+
+        if (nextThreshold == INF)
+            return {};
+
+        threshold = nextThreshold;
+    }
+}
+
+// =========================
+// RECOVERY LOGIC
 // =========================
 std::vector<std::string> Solver::recover(const Cube& cube)
 {
-    Stage current = StageDefinitions::detect(cube);
-    Stage target = getRecoveryTarget(current);
+    Stage current = StageDefinitions::detect(cube.getState());
 
-    std::cout << "Recovering from stage " << (int)current
-        << " ? " << (int)target << "\n";
+    Stage target = Stage::WHITE_CROSS;
+
+    switch (current)
+    {
+    case Stage::WHITE_CROSS: target = Stage::WHITE_CROSS; break;
+    case Stage::F2L:         target = Stage::WHITE_CROSS; break;
+    case Stage::OLL:         target = Stage::F2L; break;
+    case Stage::PLL:         target = Stage::OLL; break;
+    case Stage::COMPLETE:    target = Stage::PLL; break;
+    default:                 target = Stage::WHITE_CROSS; break;
+    }
 
     return solveToStage(cube, target);
-}
-
-// =========================
-// DEBUG TEST
-// =========================
-void Solver::testMoveInverses()
-{
-    std::cout << "\n=== TESTING MOVE INVERSES ===\n";
-
-    Cube c;
-    auto original = c.getState();
-
-    Cube temp;
-    temp.setState(original);
-    temp.applyMove(U);
-
-    Cube temp2;
-    temp2.setState(temp.getState());
-    temp2.applyMove(U_prime);
-
-    bool ok = (temp2.getState() == original);
-
-    std::cout << "U -> U' test: " << (ok ? "PASS" : "FAIL") << "\n";
-
-    if (!ok)
-        std::cout << "ERROR: inverse moves are NOT correct\n";
-
-    std::cout << "=============================\n";
 }

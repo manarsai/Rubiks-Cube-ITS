@@ -1,5 +1,6 @@
 #include "StagePreviews.h"
 #include <QPainter>
+#include <vector>
 
 QPixmap StagePreviews::createFaceImage(const QString& face)
 {
@@ -37,7 +38,6 @@ QPixmap StagePreviews::createFaceImage(const QString& face)
 
     return pixmap;
 }
-
 std::vector<QPixmap> StagePreviews::getStagePreviews(Stage stage)
 {
     switch (stage)
@@ -53,25 +53,15 @@ std::vector<QPixmap> StagePreviews::getStagePreviews(Stage stage)
         return {
             createFaceImage("   "
                             "RRR"
-                            "RRR"),
+                            "RRR")
         };
 
     case Stage::OLL:
         return {
             createFaceImage(" Y "
                             "YYY"
-                            "YY ")
+                            " Y ")
         };
-            return {
-        createFaceImage("`Y "
-                        "YYY"
-                        " Y ")
-            };
-            return {
-        createFaceImage(" YY"
-                        "YYY"
-                        " YY")
-            };
 
     case Stage::PLL:
         return {

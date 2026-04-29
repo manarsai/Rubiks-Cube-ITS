@@ -1,35 +1,59 @@
 #include "CubeNet.h"
 #include <QPainter>
-#include "../core/domain/Cube.h"
-#include "../core/domain/Validator.h"
+#include <QMouseEvent>
+#include <algorithm>
 
+// =====================================================
+// CONSTRUCTOR
+// =====================================================
 CubeNet::CubeNet(Cube& c, QWidget* parent)
     : QWidget(parent), cube(c)
 {
     setMinimumSize(400, 350);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    setAttribute(Qt::WA_Hover, true);
+    setMouseTracking(true);          // IMPORTANT for hover
+    setFocusPolicy(Qt::StrongFocus);
 }
 
-// ===============================
-// PAINT (FIXED + RESPONSIVE)
-// ===============================
-void CubeNet::paintEvent(QPaintEvent*)
+// =====================================================
+// LAYOUT
+// =====================================================
+void CubeNet::updateLayout()
 {
-    QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);
-
     const int margin = 25;
 
     int w = width() - margin * 2;
     int h = height() - margin * 2;
 
-    int faceSize = std::min(w / 4, h / 3);
-    int cellSize = faceSize / 3;
+    layout.faceSize = std::min(w / 4, h / 3);
+    layout.cellSize = layout.faceSize / 3;
 
-    int centerX = width() / 2;
-    int centerY = height() / 2;
+    layout.centerX = width() / 2;
+    layout.centerY = height() / 2;
+}
 
+// =====================================================
+// PAINT
+// =====================================================
+void CubeNet::paintEvent(QPaintEvent*)
+{
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
     painter.setPen(QPen(Qt::black, 2));
+
+    updateLayout();
+
+    auto x = [&](int col)
+        {
+            return layout.centerX - (layout.faceSize * 2) + col * layout.faceSize;
+        };
+
+    auto y = [&](int row)
+        {
+            return layout.centerY - (layout.faceSize * 3 / 2) + row * layout.faceSize;
+        };
 
     auto drawFace = [&](int startX, int startY, int faceIndex)
         {
@@ -40,10 +64,10 @@ void CubeNet::paintEvent(QPaintEvent*)
                 for (int c = 0; c < 3; c++)
                 {
                     QRect rect(
-                        startX + c * cellSize,
-                        startY + r * cellSize,
-                        cellSize,
-                        cellSize
+                        startX + c * layout.cellSize,
+                        startY + r * layout.cellSize,
+                        layout.cellSize,
+                        layout.cellSize
                     );
 
                     Colour col = face[r * 3 + c];
@@ -62,23 +86,23 @@ void CubeNet::paintEvent(QPaintEvent*)
 
                     painter.fillRect(rect, qcolor);
                     painter.drawRect(rect);
+
+                    // OPTIONAL: hover highlight
+                    if (faceIndex == hoverFace &&
+                        r == hoverRow &&
+                        c == hoverCol)
+                    {
+                        painter.setPen(QPen(Qt::cyan, 3));
+                        painter.drawRect(rect);
+                        painter.setPen(QPen(Qt::black, 2));
+                    }
                 }
             }
         };
 
-    auto x = [&](int col)
-        {
-            return centerX - (faceSize * 2) + col * faceSize;
-        };
-
-    auto y = [&](int row)
-        {
-            return centerY - (faceSize * 3 / 2) + row * faceSize;
-        };
-
-    // ===============================
-    // NET LAYOUT (CENTERED + SAFE)
-    // ===============================
+    // =====================================================
+    // NET LAYOUT
+    // =====================================================
     drawFace(x(1), y(0), 0); // UP
 
     drawFace(x(0), y(1), 1); // LEFT
@@ -89,9 +113,133 @@ void CubeNet::paintEvent(QPaintEvent*)
     drawFace(x(1), y(2), 5); // DOWN
 }
 
-// ===============================
-// SAFE UPDATE
-// ===============================
+// =====================================================
+// MOUSE MOVE (HOVER)
+// =====================================================
+void CubeNet::mouseMoveEvent(QMouseEvent* event)
+{
+    updateLayout();
+
+    hoverFace = -1;
+    hoverRow = -1;
+    hoverCol = -1;
+
+    const int margin = 25;
+
+    int w = width() - margin * 2;
+    int h = height() - margin * 2;
+
+    int faceSize = std::min(w / 4, h / 3);
+    int cellSize = faceSize / 3;
+
+    auto x = [&](int col)
+        {
+            return width() / 2 - (faceSize * 2) + col * faceSize;
+        };
+
+    auto y = [&](int row)
+        {
+            return height() / 2 - (faceSize * 3 / 2) + row * faceSize;
+        };
+
+    struct Face { QRect rect; int index; };
+
+    Face faces[] =
+    {
+        { QRect(x(1), y(0), faceSize, faceSize), 0 },
+        { QRect(x(0), y(1), faceSize, faceSize), 1 },
+        { QRect(x(1), y(1), faceSize, faceSize), 2 },
+        { QRect(x(2), y(1), faceSize, faceSize), 3 },
+        { QRect(x(3), y(1), faceSize, faceSize), 4 },
+        { QRect(x(1), y(2), faceSize, faceSize), 5 },
+    };
+
+    for (const auto& f : faces)
+    {
+        if (!f.rect.contains(event->pos()))
+            continue;
+
+        int localX = event->pos().x() - f.rect.x();
+        int localY = event->pos().y() - f.rect.y();
+
+        hoverFace = f.index;
+        hoverCol = localX / cellSize;
+        hoverRow = localY / cellSize;
+
+        update();
+        return;
+    }
+}
+
+// =====================================================
+// CLICK EDITING
+// =====================================================
+void CubeNet::mousePressEvent(QMouseEvent* event)
+{
+    updateLayout();
+
+    const int faceSize = layout.faceSize;
+    const int cellSize = layout.cellSize;
+
+    auto x = [&](int col)
+        {
+            return layout.centerX - (faceSize * 2) + col * faceSize;
+        };
+
+    auto y = [&](int row)
+        {
+            return layout.centerY - (faceSize * 3 / 2) + row * faceSize;
+        };
+
+    struct Face { QRect rect; int index; };
+
+    Face faces[] =
+    {
+        { QRect(x(1), y(0), faceSize, faceSize), 0 },
+        { QRect(x(0), y(1), faceSize, faceSize), 1 },
+        { QRect(x(1), y(1), faceSize, faceSize), 2 },
+        { QRect(x(2), y(1), faceSize, faceSize), 3 },
+        { QRect(x(3), y(1), faceSize, faceSize), 4 },
+        { QRect(x(1), y(2), faceSize, faceSize), 5 },
+    };
+
+    for (const auto& f : faces)
+    {
+        if (!f.rect.contains(event->pos()))
+            continue;
+
+        int localX = event->pos().x() - f.rect.x();
+        int localY = event->pos().y() - f.rect.y();
+
+        int col = localX / cellSize;
+        int row = localY / cellSize;
+
+        if (col < 0 || col >= 3 || row < 0 || row >= 3)
+            return;
+
+        setColor(f.index, row, col);
+        update();
+        return;
+    }
+}
+
+// =====================================================
+// COLOR CYCLE
+// =====================================================
+void CubeNet::setColor(int face, int row, int col)
+{
+    auto faceData = cube.getFace(face);
+
+    int index = row * 3 + col;
+    faceData[index] = selectedColor;
+
+    cube.setFace(face, faceData);
+    emit cubeChanged();
+}
+
+// =====================================================
+// SAFE UPDATE API
+// =====================================================
 void CubeNet::setFaceColours(int faceIndex, const std::array<Colour, 9>& colors)
 {
     if (faceIndex < 0 || faceIndex >= 6)

@@ -99,26 +99,9 @@ void Cube::setFace(int face, const std::array<Colour, 9>& faceColors)
             state[idx(face, r, c)] = faceColors[i++];
 }
 
-// =========================
-// Moves (unchanged for now)
-// =========================
-void Cube::applyMove(const Move& m)
-{
-    // ?? DEBUG: check permutation validity
-    std::set<int> check;
 
-    for (int i = 0; i < 54; i++)
-        check.insert(m.perm[i]);
 
-    std::cout << "perm size = " << check.size() << std::endl;
 
-    std::array<Colour, 54> newState;
-
-    for (int i = 0; i < 54; i++)
-        newState[i] = state[m.perm[i]];
-
-    state = newState;
-}
 // =========================
 // Solved check
 // =========================
@@ -215,3 +198,12 @@ bool Cube::isValidCube() const
     return true;
 }
 
+void Cube::applyMove(const Move& m)
+{
+    std::array<Colour, 54> newState;
+
+    for (int i = 0; i < 54; i++)
+        newState[i] = state[m.perm[i]];
+
+    state = newState;
+}

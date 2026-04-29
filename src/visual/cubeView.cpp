@@ -25,33 +25,35 @@ cubeView::cubeView(Cube& cubeModel, QWidget* parent)
 
     connect(timer, &QTimer::timeout, this, [this]()
         {
-            if (currentMove.active)
+            if (!currentMove.active) return;
+
+            currentMove.angle += currentMove.speed * 0.016f;
+
+            if (currentMove.angle >= 90.0f)
             {
-                // ? FPS-safe animation speed (degrees per frame)
-                currentMove.angle += currentMove.speed * 0.016f;
+                currentMove.active = false;
 
-                if (currentMove.angle >= 90.0f)
-                {
-                    currentMove.active = false;
+                const std::string& mv = currentMove.move;
 
-                    Move m{};
+                // Apply move safely
+                if (mv == "R")       cube.applyMove(R);
+                else if (mv == "R'") cube.applyMove(R_prime);
+                else if (mv == "U")  cube.applyMove(U);
+                else if (mv == "U'") cube.applyMove(U_prime);
+                else if (mv == "F")  cube.applyMove(F);
+                else if (mv == "F'") cube.applyMove(F_prime);
+                else if (mv == "D")  cube.applyMove(D);
+                else if (mv == "D'") cube.applyMove(D_prime);
+                else if (mv == "B")  cube.applyMove(B);
+                else if (mv == "B'") cube.applyMove(B_prime);
+                else if (mv == "L")  cube.applyMove(L);
+                else if (mv == "L'") cube.applyMove(L_prime);
 
-                    switch (currentMove.move)
-                    {
-                    case 'R': m = currentMove.prime ? R_prime : R; break;
-                    case 'U': m = currentMove.prime ? U_prime : U; break;
-                    case 'F': m = currentMove.prime ? F_prime : F; break;
-                    case 'B': m = currentMove.prime ? B_prime : B; break;
-                    case 'D': m = currentMove.prime ? D_prime : D; break;
-                    }
-
-                    cube.applyMove(m);
-                    startNextMove();
-                }
-
-                update();
-                QCoreApplication::processEvents();
+                startNextMove();
             }
+
+            update();
+            QCoreApplication::processEvents();
         });
 
     timer->start(16);
@@ -77,17 +79,12 @@ void cubeView::startNextMove()
     if (moveQueue.empty())
         return;
 
-    std::string m = moveQueue.front();
+    currentMove.move = moveQueue.front();
     moveQueue.pop();
 
     currentMove.active = true;
     currentMove.angle = 0.0f;
-
-    // ?? speed = degrees per second (smooth + adjustable)
     currentMove.speed = 90.0f;
-
-    currentMove.move = m[0];
-    currentMove.prime = (m.size() > 1 && m[1] == '\'');
 }
 
 // =========================
@@ -102,16 +99,19 @@ void cubeView::drawCubeEdges()
 
     glBegin(GL_LINES);
 
+    // bottom
     glVertex3f(-s, -s, -s); glVertex3f(s, -s, -s);
     glVertex3f(s, -s, -s); glVertex3f(s, -s, s);
     glVertex3f(s, -s, s); glVertex3f(-s, -s, s);
     glVertex3f(-s, -s, s); glVertex3f(-s, -s, -s);
 
+    // top
     glVertex3f(-s, s, -s); glVertex3f(s, s, -s);
     glVertex3f(s, s, -s); glVertex3f(s, s, s);
     glVertex3f(s, s, s); glVertex3f(-s, s, s);
     glVertex3f(-s, s, s); glVertex3f(-s, s, -s);
 
+    // vertical
     glVertex3f(-s, -s, -s); glVertex3f(-s, s, -s);
     glVertex3f(s, -s, -s); glVertex3f(s, s, -s);
     glVertex3f(s, -s, s); glVertex3f(s, s, s);
@@ -121,7 +121,7 @@ void cubeView::drawCubeEdges()
 }
 
 // =========================
-// MAIN RENDER LOOP (FIXED + HIGHLIGHT)
+// MAIN RENDER LOOP
 // =========================
 void cubeView::drawAllCubies()
 {
@@ -131,22 +131,48 @@ void cubeView::drawAllCubies()
 
         bool inLayer = false;
         float axisX = 0, axisY = 0, axisZ = 0;
-
-        // ? highlight flag
         bool highlight = false;
 
         if (currentMove.active)
         {
-            if (currentMove.move == 'R' && c.x == 1) { inLayer = true; axisX = 1; highlight = true; }
-            if (currentMove.move == 'U' && c.y == 1) { inLayer = true; axisY = 1; highlight = true; }
-            if (currentMove.move == 'D' && c.y == -1) { inLayer = true; axisY = 1; highlight = true; }
-            if (currentMove.move == 'F' && c.z == 1) { inLayer = true; axisZ = 1; highlight = true; }
-            if (currentMove.move == 'B' && c.z == -1) { inLayer = true; axisZ = 1; highlight = true; }
+            const std::string& mv = currentMove.move;
+
+            if ((mv == "R" || mv == "R'") && c.x == 1)
+            {
+                inLayer = true; axisX = 1; highlight = true;
+            }
+
+            if ((mv == "U" || mv == "U'") && c.y == 1)
+            {
+                inLayer = true; axisY = 1; highlight = true;
+            }
+
+            if ((mv == "D" || mv == "D'") && c.y == -1)
+            {
+                inLayer = true; axisY = 1; highlight = true;
+            }
+
+            if ((mv == "F" || mv == "F'") && c.z == 1)
+            {
+                inLayer = true; axisZ = 1; highlight = true;
+            }
+
+            if ((mv == "B" || mv == "B'") && c.z == -1)
+            {
+                inLayer = true; axisZ = 1; highlight = true;
+            }
+
+            if ((mv == "L" || mv == "L'") && c.x == -1)
+            {
+                inLayer = true; axisX = 1; highlight = true;
+            }
         }
 
         if (inLayer)
         {
-            float dir = currentMove.prime ? 1.0f : -1.0f;
+            bool prime = (currentMove.move.size() > 1 && currentMove.move[1] == '\'');
+            float dir = prime ? 1.0f : -1.0f;
+
             glRotatef(dir * currentMove.angle, axisX, axisY, axisZ);
         }
 
@@ -160,15 +186,12 @@ void cubeView::drawAllCubies()
 }
 
 // =========================
-// CUBIE DRAW (WITH HIGHLIGHT)
+// CUBIE DRAW
 // =========================
 void cubeView::drawCubie(const Cubie& c, bool highlight)
 {
     float s = 0.5f;
 
-    // =========================
-    // 1. NORMAL CUBIE (always)
-    // =========================
     glBegin(GL_QUADS);
 
     auto apply = [&](QColor qc)
@@ -179,90 +202,64 @@ void cubeView::drawCubie(const Cubie& c, bool highlight)
     if (c.z == 1)
     {
         apply(convertColour(safeAt(2, -c.y + 1, c.x + 1)));
-
-        glVertex3f(-s, -s, s);
-        glVertex3f(-s, s, s);
-        glVertex3f(s, s, s);
-        glVertex3f(s, -s, s);
+        glVertex3f(-s, -s, s); glVertex3f(-s, s, s);
+        glVertex3f(s, s, s);   glVertex3f(s, -s, s);
     }
+
     if (c.z == -1)
     {
         apply(convertColour(safeAt(4, -c.y + 1, -c.x + 1)));
-
-        glVertex3f(s, -s, -s);
-        glVertex3f(s, s, -s);
-        glVertex3f(-s, s, -s);
-        glVertex3f(-s, -s, -s);
+        glVertex3f(s, -s, -s); glVertex3f(s, s, -s);
+        glVertex3f(-s, s, -s); glVertex3f(-s, -s, -s);
     }
 
     if (c.x == -1)
     {
         apply(convertColour(safeAt(1, -c.y + 1, c.z + 1)));
-
-        glVertex3f(-s, -s, -s);
-        glVertex3f(-s, -s, s);
-        glVertex3f(-s, s, s);
-        glVertex3f(-s, s, -s);
+        glVertex3f(-s, -s, -s); glVertex3f(-s, -s, s);
+        glVertex3f(-s, s, s);   glVertex3f(-s, s, -s);
     }
 
     if (c.x == 1)
     {
         apply(convertColour(safeAt(3, -c.y + 1, -c.z + 1)));
-
-        glVertex3f(s, -s, s);
-        glVertex3f(s, -s, -s);
-        glVertex3f(s, s, -s);
-        glVertex3f(s, s, s);
+        glVertex3f(s, -s, s); glVertex3f(s, -s, -s);
+        glVertex3f(s, s, -s); glVertex3f(s, s, s);
     }
 
     if (c.y == 1)
     {
         apply(convertColour(safeAt(0, c.z + 1, c.x + 1)));
-
-        glVertex3f(-s, s, -s);
-        glVertex3f(s, s, -s);
-        glVertex3f(s, s, s);
-        glVertex3f(-s, s, s);
+        glVertex3f(-s, s, -s); glVertex3f(s, s, -s);
+        glVertex3f(s, s, s);   glVertex3f(-s, s, s);
     }
 
     if (c.y == -1)
     {
         apply(convertColour(safeAt(5, -c.z + 1, c.x + 1)));
-
-        glVertex3f(-s, -s, s);
-        glVertex3f(s, -s, s);
-        glVertex3f(s, -s, -s);
-        glVertex3f(-s, -s, -s);
+        glVertex3f(-s, -s, s); glVertex3f(s, -s, s);
+        glVertex3f(s, -s, -s); glVertex3f(-s, -s, -s);
     }
 
     glEnd();
 
-    // =========================
-    // 2. EDGE HIGHLIGHT ONLY (NO FILL)
-    // =========================
     if (highlight)
     {
-        //glDisable(GL_CULL_FACE); // IMPORTANT for wireframe overlay
-
-        glColor3f(1.0f, 1.0f, 0.0f);
+        glColor3f(0.0f, 1.0f, 1.0f);
         glLineWidth(3.0f);
 
         glBegin(GL_LINES);
 
-        // cube edges only (wireframe)
-        // bottom square
         glVertex3f(-s, -s, -s); glVertex3f(s, -s, -s);
         glVertex3f(s, -s, -s); glVertex3f(s, -s, s);
         glVertex3f(s, -s, s); glVertex3f(-s, -s, s);
         glVertex3f(-s, -s, s); glVertex3f(-s, -s, -s);
 
-        // top square
         glVertex3f(-s, s, -s); glVertex3f(s, s, -s);
         glVertex3f(s, s, -s); glVertex3f(s, s, s);
         glVertex3f(s, s, s); glVertex3f(-s, s, s);
         glVertex3f(-s, s, s); glVertex3f(-s, s, -s);
 
-        // vertical lines
         glVertex3f(-s, -s, -s); glVertex3f(-s, s, -s);
         glVertex3f(s, -s, -s); glVertex3f(s, s, -s);
         glVertex3f(s, -s, s); glVertex3f(s, s, s);
@@ -276,14 +273,9 @@ void cubeView::drawCubie(const Cubie& c, bool highlight)
 void cubeView::initializeGL()
 {
     initializeOpenGLFunctions();
-
     glEnable(GL_DEPTH_TEST);
-
-    // IMPORTANT FIX: proper face culling setup
-    //glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
-    glFrontFace(GL_CCW);   // <-- THIS is what fixes “backwards face”
-
+    glFrontFace(GL_CCW);
     glClearColor(1, 1, 1, 1);
 }
 
@@ -299,12 +291,10 @@ void cubeView::resizeGL(int w, int h)
     float fov = 45.0f;
 
     float nearP = 0.1f;
-    float farP = 100.0f;
-
     float top = nearP * tan(fov * 3.1415926f / 360.0f);
     float right = top * aspect;
 
-    glFrustum(-right, right, -top, top, nearP, farP);
+    glFrustum(-right, right, -top, top, nearP, 100.0f);
 
     glMatrixMode(GL_MODELVIEW);
 }
@@ -322,7 +312,6 @@ void cubeView::paintGL()
 
     drawAllCubies();
 }
-
 
 // =========================
 // SAFE ACCESS

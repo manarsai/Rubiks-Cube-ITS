@@ -14,8 +14,8 @@ public:
 
     struct TutorResult
     {
-        int stageValue = 0;
-        std::string message;
+        int stageValue;
+        std::string message;        // ? VALUE (not reference)
         std::string instructionText;
     };
 

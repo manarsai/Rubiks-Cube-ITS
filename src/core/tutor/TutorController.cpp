@@ -34,7 +34,7 @@ TutorController::TutorResult TutorController::CheckSubmission(
     // =====================================================
     // 1. DETECT CURRENT STAGE
     // =====================================================
-    Stage actualStage = StageDefinitions::detect(cube);
+    Stage actualStage = StageDefinitions::detect(cube.getState());
 
     std::cout << "\n--- TUTOR DEBUG ---\n";
     std::cout << "Actual Stage   : " << (int)actualStage << "\n";

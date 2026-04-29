@@ -1,13 +1,17 @@
 #pragma once
 
 #include <QMainWindow>
-#include <QStringList>
 #include <QLineEdit>
-#include "../../app/AppController.h"
+#include <QString>
 #include <vector>
-#include <QPixmap>
+#include <string>
 
+#include "../../app/AppController.h"
+#include "../core/domain/Solver.h"   // ? FIXED
 
+// =========================
+// FORWARD DECLARATIONS
+// =========================
 class QStackedWidget;
 class QWidget;
 class QPushButton;
@@ -18,6 +22,11 @@ class CameraWidget;
 class cubeView;
 class CubeNet;
 class AppController;
+
+// =========================
+// STAGE SYSTEM
+// =========================
+#include "../core/domain/StageDefinitions.h"
 
 class MainWindow : public QMainWindow
 {
@@ -32,37 +41,51 @@ private:
     // CORE
     // =========================
     AppController* controller = nullptr;
-    int currentFace = 0;
+    Solver* solver = nullptr;
 
     QStackedWidget* stack = nullptr;
 
     QWidget* startScreen = nullptr;
+    QWidget* nameScreen = nullptr;
     QWidget* mainScreen = nullptr;
     QWidget* cameraScreen = nullptr;
 
     // =========================
-    // UI ELEMENTS
+    // CUBE VIEWS
     // =========================
     cubeView* cubeStart = nullptr;
     cubeView* cubeMain = nullptr;
     CubeNet* grid = nullptr;
-    QWidget* nameScreen;
-    QLineEdit* nameInput;
-    QPushButton* startButton;
-    QLabel* userLabel;
-    QLabel* guidanceLabel;
-    bool solverMode = false;
-    QPushButton* retryButton;
 
-    int currentStage = 0;
-    std::string currentInstruction;
+    // =========================
+    // INPUT / LABELS
+    // =========================
+    QLineEdit* nameInput = nullptr;
 
-
-    CameraWidget* cameraWidget = nullptr;
-
+    QLabel* userLabel = nullptr;
+    QLabel* guidanceLabel = nullptr;
     QLabel* solverOutputLabel = nullptr;
     QLabel* scanInstruction = nullptr;
 
+    // =========================
+    // STATE
+    // =========================
+    int currentFace = 0;
+    int currentStage = 0;
+
+    std::string currentInstruction;
+    std::vector<std::string> lastSolution;
+
+    bool solverMode = false;
+
+    // =========================
+    // CAMERA
+    // =========================
+    CameraWidget* cameraWidget = nullptr;
+
+    // =========================
+    // UI ELEMENTS
+    // =========================
     QProgressBar* stageBar = nullptr;
 
     // =========================
@@ -72,19 +95,18 @@ private:
     QPushButton* continueButton = nullptr;
     QPushButton* exitButton = nullptr;
 
+    QPushButton* startButton = nullptr;
     QPushButton* scanButton = nullptr;
     QPushButton* pauseButton = nullptr;
-
+    QPushButton* retryButton = nullptr;
     QPushButton* backButton = nullptr;
-    QPushButton* scanFaceButton = nullptr;
 
     // =========================
-// PREVIEW IMAGES
-// =========================
+    // PREVIEWS
+    // =========================
     QLabel* preview1 = nullptr;
     QLabel* preview2 = nullptr;
     QLabel* preview3 = nullptr;
-    QLabel* previewLabel = nullptr;
 
     // =========================
     // SETUP
@@ -96,17 +118,11 @@ private:
     void setupConnections();
 
     void updatePreviews(Stage stage);
-
-    // =========================
-    // UI BUILDERS
-    // =========================
-    QWidget* createNavPanel();
-    QWidget* createCubePanel();
+    void completeScanAndSolve();
 
     // =========================
     // LOGIC
     // =========================
     void handleScan();
     void resetScan();
-
 };

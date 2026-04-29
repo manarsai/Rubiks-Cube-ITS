@@ -2,25 +2,8 @@
 #include <array>
 #include <string>
 #include "Moves.h"
-
-// =========================
-// Colour system
-// =========================
-enum class Colour {
-    WHITE, RED, BLUE, GREEN, YELLOW, ORANGE, UNKNOWN
-};
-
-// =========================
-// Face indexing system
-// =========================
-enum Face {
-    UP,
-    LEFT,
-    FRONT,
-    RIGHT,
-    BACK,
-    DOWN
-};
+#include "Colour.h"
+#include "FaceDirections.h"
 
 // =========================
 // Cube
