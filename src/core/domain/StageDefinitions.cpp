@@ -50,31 +50,21 @@ bool StageDefinitions::isWhiteCrossComplete(const State& s)
 // =====================================================
 bool StageDefinitions::isF2LComplete(const State& s)
 {
-    for (int r = 0; r < 3; r++)
-        for (int c = 0; c < 3; c++)
-            if (s[idx(DOWN, r, c)] != Colour::WHITE)
-                return false;
+    // Must at least have white cross
+    if (!isWhiteCrossComplete(s))
+        return false;
 
-    struct FaceCheck
+    // F2L check = bottom two layers filled (white layer done)
+    for (int face = 0; face < 4; face++)
     {
-        int face;
-        Colour center;
-    };
-
-    FaceCheck faces[] =
-    {
-        {FRONT, Colour::RED},
-        {RIGHT, Colour::GREEN},
-        {BACK,  Colour::ORANGE},
-        {LEFT,  Colour::BLUE}
-    };
-
-    for (const auto& f : faces)
-    {
-        for (int r = 0; r < 3; r++)
+        for (int r = 0; r < 2; r++)   // ONLY bottom 2 layers
+        {
             for (int c = 0; c < 3; c++)
-                if (s[idx(f.face, r, c)] != f.center)
+            {
+                if (s[idx(face, r, c)] == Colour::WHITE)
                     return false;
+            }
+        }
     }
 
     return true;
@@ -146,11 +136,11 @@ bool StageDefinitions::validateStage(Stage stage, const State& s)
 Stage StageDefinitions::detect(const State& s)
 {
     if (isPLLComplete(s)) return Stage::COMPLETE;
-    if (isOLLComplete(s)) return Stage::PLL;
-    if (isF2LComplete(s)) return Stage::OLL;
-    if (isWhiteCrossComplete(s)) return Stage::F2L;
+    if (isOLLComplete(s)) return Stage::OLL;
+    if (isF2LComplete(s)) return Stage::F2L;
+    if (isWhiteCrossComplete(s)) return Stage::WHITE_CROSS;
 
-    return Stage::WHITE_CROSS;
+    return Stage::SCRAMBLED; // ?? IMPORTANT
 }
 
 // =====================================================

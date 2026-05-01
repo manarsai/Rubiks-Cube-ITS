@@ -4,23 +4,24 @@
 #include <memory>
 #include <string>
 #include <optional>
+
 #include "../core/student/StageStats.h"
 
-// =========================
-// DATA STRUCTS
-// =========================
+// =====================================================
+// SESSION DATA STRUCT
+// NOTE: stage = TutorController expectedStage snapshot
+// =====================================================
 struct Session
 {
     int face = 0;
     std::string cubeState;
-    int stage = 0;
-    std::string instruction;
+    int stage = 0;          // IMPORTANT: represents expectedStage
     bool solverMode = false;
 };
 
-// =========================
+// =====================================================
 // DATABASE CLASS
-// =========================
+// =====================================================
 class Database
 {
 public:
@@ -31,35 +32,33 @@ public:
 
     void initTables();
 
-    // =========================
+    // =====================================================
     // USER
-    // =========================
+    // =====================================================
     void setUserName(const std::string& name);
     std::optional<std::string> getUserName();
 
-    // =========================
-    // SESSION (NEW CLEAN API)
-    // =========================
+    // =====================================================
+    // SESSION (CLEAN API)
+    // =====================================================
     void saveSession(const Session& s);
 
     void saveSession(int face,
         const std::string& cubeState,
         int stage,
-        const std::string& instruction,
         bool solverMode);
 
     bool loadSession(int& face,
         std::string& cubeState,
         int& stage,
-        std::string& instruction,
         bool& solverMode);
 
     bool hasSession();
     void resetSession();
 
-    // =========================
-    // STATS
-    // =========================
+    // =====================================================
+    // STATS (OPTIONAL SYSTEM)
+    // =====================================================
     void updateSuccess(int stage);
     void updateFailure(int stage);
     void updateSolverUse(int stage);
@@ -67,9 +66,17 @@ public:
 
     std::optional<StageStats> getStageStats(int stage);
 
+    // =====================================================
+    // DEBUG / SAFETY (ADDED)
+    // =====================================================
+    bool isOpen() const;
+
 private:
     Database() = default;
 
+    // =====================================================
+    // CORE SQL HELPERS
+    // =====================================================
     void exec(const std::string& sql);
 
     struct SqliteDeleter
@@ -82,6 +89,7 @@ private:
     using StmtPtr = std::unique_ptr<sqlite3_stmt, SqliteDeleter>;
 
     StmtPtr prepare(const std::string& sql);
+
     void begin();
     void commit();
     void rollback();

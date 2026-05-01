@@ -50,27 +50,27 @@ void Student::recordSolverUse(Stage stage)
 }
 
 // =========================
-// TIMER
+// TIMER (FIXED: per-stage tracking)
 // =========================
 void Student::startTimer(Stage stage)
 {
-    startTime = std::chrono::steady_clock::now();
-    timerRunning = true;
+    startTimes[stage] = std::chrono::steady_clock::now();
+    timerRunning[stage] = true;
 }
 
 void Student::stopTimer(Stage stage)
 {
-    if (!timerRunning)
+    if (!timerRunning[stage])
         return;
 
     auto end = std::chrono::steady_clock::now();
 
     double seconds =
-        std::chrono::duration<double>(end - startTime).count();
+        std::chrono::duration<double>(end - startTimes[stage]).count();
 
     stats[stage].timeSpent += seconds;
 
-    timerRunning = false;
+    timerRunning[stage] = false;
 }
 
 // =========================
@@ -92,14 +92,15 @@ double Student::getSuccessRate(Stage stage) const
 
     int total = s.successCount + s.failCount;
 
+    // FIX: neutral baseline instead of punishing new students
     if (total == 0)
-        return 0.0;
+        return 0.5;
 
-    return (double)s.successCount / total;
+    return static_cast<double>(s.successCount) / total;
 }
 
 // =========================
-// SUPPORT LEVEL (ITS CORE)
+// SUPPORT LEVEL (CORE LOGIC)
 // =========================
 int Student::getSupportLevel(Stage stage) const
 {

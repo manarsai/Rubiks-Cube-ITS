@@ -11,6 +11,17 @@ TutorController::TutorController(Student& student)
 {
 }
 
+// =====================================================
+// GET EXPECTED STAGE (FIX: missing in your system)
+// =====================================================
+Stage TutorController::getExpectedStage() const
+{
+    return expectedStage;
+}
+
+// =====================================================
+// MAIN LOGIC
+// =====================================================
 TutorController::TutorResult TutorController::CheckSubmission(
     const Cube& cube,
     ScanType type)
@@ -18,44 +29,44 @@ TutorController::TutorResult TutorController::CheckSubmission(
     TutorResult result;
 
     // =====================================================
-    // 0. HARD VALIDATION (BLOCK BAD SCANS)
+    // 0. VALIDATION
     // =====================================================
     if (!Validator::isValidCube(cube))
     {
-        std::cout << "Invalid cube scan - ignored\n";
-
         result.stageValue = static_cast<int>(expectedStage);
-        result.message = "Invalid scan. Try again.";
-        result.instructionText = "Make sure all faces are scanned clearly.";
-
+        result.message = "Invalid scan";
+        result.instructionText = "Try scanning again clearly.";
         return result;
     }
 
     // =====================================================
-    // 1. DETECT CURRENT STAGE
+    // 1. DETECT ACTUAL STAGE (FOR LOGGING ONLY)
     // =====================================================
     Stage actualStage = StageDefinitions::detect(cube.getState());
 
-    std::cout << "\n--- TUTOR DEBUG ---\n";
+    std::cout << "\n=== TUTOR DEBUG ===\n";
     std::cout << "Actual Stage   : " << (int)actualStage << "\n";
     std::cout << "Expected Stage : " << (int)expectedStage << "\n";
 
     // =====================================================
-    // 2. INITIAL ENTRY (SCRAMBLED ? START LEARNING)
+    // 2. INITIAL STATE SETUP
     // =====================================================
     if (expectedStage == Stage::SCRAMBLED)
     {
-        expectedStage = (actualStage == Stage::SCRAMBLED)
-            ? Stage::WHITE_CROSS   // beginner path
-            : actualStage;         // jump to detected level
+        expectedStage =
+            (actualStage == Stage::SCRAMBLED)
+            ? Stage::WHITE_CROSS
+            : actualStage;
     }
 
     // =====================================================
-    // 3. SUCCESS CHECK (ALLOW FORWARD PROGRESS)
+    // 3. SUCCESS LOGIC
     // =====================================================
-    bool success = (actualStage >= expectedStage);
+    bool success = StageDefinitions::validateStage(expectedStage, cube.getState());
 
-    std::cout << "Success        : " << success << "\n";
+    std::cout << "EXPECTED: " << (int)expectedStage << "\n";
+    std::cout << "ACTUAL: " << (int)actualStage << "\n";
+    std::cout << "SUCCESS: " << success << "\n";
 
     // =====================================================
     // 4. UPDATE STUDENT MODEL
@@ -66,30 +77,28 @@ TutorController::TutorResult TutorController::CheckSubmission(
         student.recordFailure(expectedStage);
 
     // =====================================================
-    // 5. DECIDE NEXT STAGE (ONLY ON SUCCESS)
+    // 5. ADVANCE ONLY ON SUCCESS
     // =====================================================
     if (success)
     {
-        expectedStage = engine.decideNextStage(
-            expectedStage,
-            actualStage,
-            student
-        );
+        expectedStage = engine.decideNextStage(expectedStage, actualStage, student);
     }
 
-    std::cout << "New Expected   : " << (int)expectedStage << "\n";
+    std::cout << "Next Expected: " << (int)expectedStage << "\n";
 
     // =====================================================
-    // 6. GENERATE GUIDANCE
+    // 6. GUIDANCE (SOURCE OF TRUTH)
     // =====================================================
-    Guidance guidance;
-    std::string instruction = guidance.generate(expectedStage, student);
+    std::string instruction =
+        Guidance::generate(expectedStage, student);
+
+    std::cout << "GUIDANCE STAGE: " << (int)expectedStage << "\n";
 
     // =====================================================
-    // 7. OUTPUT RESULT
+    // 7. RESULT
     // =====================================================
     result.stageValue = static_cast<int>(expectedStage);
-    result.message = success ? "Good progress" : "Try again";
+    result.message = success ? "Good progress" : "";
     result.instructionText = instruction;
 
     return result;

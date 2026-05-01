@@ -93,10 +93,11 @@ void MainWindow::setupStartScreen()
     QWidget* cubeContainer = new QWidget();
     QVBoxLayout* cubeLayout = new QVBoxLayout(cubeContainer);
 
-    cubeStart = new cubeView(controller->getCube(), cubeContainer);
+    Cube* startCubeModel = new Cube(controller->getCube());
+    cubeStart = new cubeView(*startCubeModel, cubeContainer, true);
     cubeStart->setFixedSize(300, 300);
 
-    cubeStart->testMoves();
+
 
     cubeLayout->addStretch();
     cubeLayout->addWidget(cubeStart, 0, Qt::AlignCenter);
@@ -397,6 +398,21 @@ void MainWindow::setupCameraScreen()
         });
 };
 
+QString MainWindow::getScanInstruction(int step)
+{
+    QString base = "Press SPACE to scan face\n";
+
+    switch (step)
+    {
+    case 0: return base + "Scan the YELLOW centre face with the ORANGE centre face facing upwards.";
+    case 1: return base + "Scan the BLUE centre face with the YELLOW centre face facing upwards.";
+    case 2: return base + "Scan the RED centre face with the YELLOW centre face facing upwards.";
+    case 3: return base + "Scan the GREEN centre face with the YELLOW centre face facing upwards.";
+    case 4: return base + "Scan the ORANGE centre face with the YELLOW centre face facing upwards.";
+    case 5: return base + "Scan the WHITE centre face with the RED centre face facing upwards.";
+    default: return "Scan complete";
+    }
+}
 
 void MainWindow::handleScan()
 {
@@ -421,7 +437,7 @@ void MainWindow::handleScan()
     Session s;
     s.cubeState = controller->getCube().serialize();
     s.stage = result.stageValue;
-    s.instruction = result.message;
+
 
     // IMPORTANT FIX: do NOT use UI solverMode
     s.solverMode = controller->isSolverMode();
@@ -433,11 +449,14 @@ void MainWindow::handleScan()
     // =========================
     if (!result.finished)
     {
-        scanInstruction->setText("Face recorded. Continue scanning...");
         grid->update();
+
+        scanInstruction->setText(getScanInstruction(scanStep + 1));
+
+        scanStep = std::min(scanStep + 1, 5);
+
         return;
     }
-
     // =========================
     // FINAL SCAN UPDATE
     // =========================
@@ -480,7 +499,10 @@ void MainWindow::handleScan()
         if (!result.guidance.empty())
             guidanceLabel->setText(QString::fromStdString(result.guidance));
 
+        cubeMain->resetAnimation();
+
         cubeMain->setMoves(moves);
+        cubeMain->playMoves();  // ?? THIS is now your trigger
         cubeMain->update();
     }
     else
@@ -495,7 +517,7 @@ void MainWindow::handleScan()
     cameraWidget->stopCamera();
 
     cubeMain->update();
-    cubeStart->update();
+
 
     std::cout << "---- SCAN END ----\n";
 }
@@ -507,9 +529,13 @@ void MainWindow::resetScan()
     controller->resetScan();
     controller->resetCube();
 
+    scanStep = 0;
+
     grid->update();
     cubeMain->update();
-    cubeStart->update();
+
+
+    scanInstruction->setText("Hold WHITE face facing the camera");
 }
 
 void MainWindow::updatePreviews(Stage stage)
@@ -542,7 +568,12 @@ void MainWindow::setupConnections()
     connect(newButton, &QPushButton::clicked, this, [this]()
         {
             Database::instance().resetSession();
-            resetScan();
+
+            controller->resetCube();   // model reset
+            controller->resetScan();   // scan reset
+
+            resetUI();                 // ? UI reset (this was missing)
+
             stack->setCurrentWidget(nameScreen);
         });
 
@@ -595,6 +626,8 @@ void MainWindow::setupConnections()
         {
             controller->setSolverMode(true);
             controller->resetScan();
+            controller->resetCube();
+
 
             guidanceLabel->setText(
                 "Retrying stage:\n\n"
@@ -610,6 +643,7 @@ void MainWindow::setupConnections()
 
     connect(backButton, &QPushButton::clicked, this, [this]()
         {
+            scanStep = 0;
             cameraWidget->stopCamera();
             stack->setCurrentWidget(mainScreen);
         });
@@ -630,35 +664,58 @@ void MainWindow::setupConnections()
         {
             int face = 0;
             std::string state;
-            int stage = 0;
-            std::string instruction;
+            int stageFromDb = 0;
             bool solver = false;
 
             bool ok = Database::instance().loadSession(
-                face, state, stage, instruction, solver
+                face, state, stageFromDb, solver
             );
 
             if (!ok)
             {
-                QMessageBox::information(
-                    this,
-                    "No Saved Game",
-                    "No previous session found."
-                );
+                QMessageBox::information(this, "No Saved Game", "No previous session found.");
                 return;
             }
 
             controller->loadState(state);
             controller->setSolverMode(solver);
-  
 
-            stageBar->setValue(stage);
+            const Cube& cube = controller->getCube();
 
-            guidanceLabel->setText(QString::fromStdString(instruction));
+            Stage current = StageDefinitions::detect(cube.getState());
+
+            Stage target = (current != Stage::SCRAMBLED)
+                ? getNextStage(current)
+                : Stage::WHITE_CROSS;
+
+            QString stageName;
+            switch (target)
+            {
+            case Stage::WHITE_CROSS: stageName = "White Cross"; break;
+            case Stage::F2L:         stageName = "F2L"; break;
+            case Stage::OLL:         stageName = "OLL"; break;
+            case Stage::PLL:         stageName = "PLL"; break;
+            case Stage::COMPLETE:    stageName = "Complete"; break;
+            default:                 stageName = "Scrambled";
+            }
+
+            stageBar->setValue(static_cast<int>(target));
+            stageBar->setFormat(stageName + " (%v/%m)");
+
+            updatePreviews(target);
+
+
+
+            // ? ONLY SOURCE OF TRUTH NOW
+            guidanceLabel->setText(
+                QString::fromStdString(
+                    Guidance::generate(controller->getExpectedStage(), controller->getStudent())
+                )
+            );
 
             grid->update();
             cubeMain->update();
-            cubeStart->update();
+     
 
             stack->setCurrentWidget(mainScreen);
         });
@@ -670,31 +727,26 @@ void MainWindow::setupConnections()
                 int face = 0;
                 std::string state;
                 int stage = 0;
-                std::string instruction;
                 bool loadedSolverMode = false;
 
-                // Load session
-                if (Database::instance().loadSession(face, state, stage, instruction, loadedSolverMode))
+                if (Database::instance().loadSession(face, state, stage, loadedSolverMode))
                 {
                     stageBar->setValue(stage);
-
-                    if (!instruction.empty())
-                        guidanceLabel->setText(QString::fromStdString(instruction));
                 }
 
-                // =========================
-                // USER NAME (FIXED)
-                // =========================
                 auto nameOpt = Database::instance().getUserName();
-
-                std::string name = "Guest";
-
-                if (nameOpt.has_value())
-                {
-                    name = nameOpt.value();
-                }
+                std::string name = nameOpt.value_or("Guest");
 
                 userLabel->setText(QString::fromStdString(name));
+
+                // ? OPTIONAL: refresh guidance safely
+                Stage current = StageDefinitions::detect(controller->getCube().getState());
+
+                guidanceLabel->setText(
+                    QString::fromStdString(
+                        Guidance::generate(controller->getExpectedStage(), controller->getStudent())
+                    )
+                );
             }
         });
 
@@ -703,6 +755,16 @@ void MainWindow::setupConnections()
 void MainWindow::completeScanAndSolve()
 {
     cameraWidget->stopCamera();
+
+    // =====================================================
+    // TUTOR MODE: DO NOT RUN SOLVER
+    // =====================================================
+    if (!controller->isSolverMode())
+    {
+        stack->setCurrentWidget(mainScreen);
+
+        return;
+    }
 
     if (!solver)
     {
@@ -713,7 +775,7 @@ void MainWindow::completeScanAndSolve()
     const Cube& cube = controller->getCube();
 
     Stage current = StageDefinitions::detect(cube.getState());
-    Stage target;
+    Stage target = Stage::WHITE_CROSS;
 
     switch (current)
     {
@@ -740,8 +802,66 @@ void MainWindow::completeScanAndSolve()
     solverOutputLabel->setText(movesText.trimmed());
 
     controller->setSolverMode(true);
+    cubeMain->setCubeState(controller->getCube());  // ? sync fresh state
     cubeMain->setMoves(lastSolution);
-    cubeMain->update();
+
+    // =====================================================
+    // SAVE SESSION (IMPORTANT FIX)
+    // =====================================================
+    Session s;
+    s.cubeState = controller->getCube().serialize();
+    s.stage = static_cast<int>(current);
+
+    // ?? FIX: always persist current guidance
+    //s.instruction = guidanceLabel->text().toStdString();
+
+    s.solverMode = controller->isSolverMode();
+
+    Database::instance().saveSession(s);
 
     stack->setCurrentWidget(mainScreen);
+}
+
+void MainWindow::resetUI()
+{
+    // Stage bar
+    stageBar->setValue(0);
+    stageBar->setFormat("Scan your cube to begin");
+
+    // Guidance
+    //guidanceLabel->setText(
+    //    "Welcome!\n\n"
+    //    "1. Click 'Scan Cube'\n"
+    //    "2. Scan all 6 faces\n"
+    //    "3. Follow step-by-step guidance\n\n"
+    //    "Goal: Solve using CFOP"
+    //);
+
+    // Solver output
+    solverOutputLabel->setText("No solution yet");
+    lastSolution.clear();
+
+    // Previews
+    for (QLabel* p : { preview1, preview2, preview3 })
+    {
+        p->clear();
+        p->hide();
+    }
+
+    // Optional but good
+    scanInstruction->setText("Press SPACE to scan face");
+}
+
+static Stage getNextStage(Stage current)
+{
+    switch (current)
+    {
+    case Stage::SCRAMBLED:   return Stage::WHITE_CROSS;
+    case Stage::WHITE_CROSS: return Stage::F2L;
+    case Stage::F2L:         return Stage::OLL;
+    case Stage::OLL:         return Stage::PLL;
+    case Stage::PLL:         return Stage::COMPLETE;
+    case Stage::COMPLETE:    return Stage::COMPLETE;
+    default:                 return Stage::WHITE_CROSS;
+    }
 }

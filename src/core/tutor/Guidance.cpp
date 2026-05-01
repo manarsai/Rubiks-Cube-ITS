@@ -1,117 +1,50 @@
 #include "Guidance.h"
 
-// =====================================================
-// MAIN GUIDANCE GENERATOR (SAFE)
-// =====================================================
 std::string Guidance::generate(Stage stage, const Student& student)
 {
-    double rate = 0.0;
-
-    // -----------------------------------------------------
-    // SAFETY: prevent crashes from Student model
-    // -----------------------------------------------------
-    try
-    {
-        rate = student.getSuccessRate(stage);
-    }
-    catch (...)
-    {
-        rate = 0.0;
-    }
+    int support = student.getSupportLevel(stage);
 
     switch (stage)
     {
-        // =====================================================
-        // SCRAMBLED (invalid / start state)
-        // =====================================================
     case Stage::SCRAMBLED:
-        return "Start by identifying the white center and building a white cross around it.";
+        return         "Welcome to the Rubik's Cube ITS!\n\n"
+        "1. Click 'Scan Cube'\n"
+        "2. Follow the prompts and scan all six faces.\n"
+        "3. Receive guidance based on your cube's state.\n\n"
+            "Goal: Solve using CFOP";
 
-        // =====================================================
-        // WHITE CROSS
-        // =====================================================
     case Stage::WHITE_CROSS:
-        if (rate < 0.4)
-        {
-            return "Start by finding white edge pieces. Match each edge with its center colour, then move it to the bottom to form a white cross.";
-        }
-
-        if (rate < 0.7)
-        {
-            return "Try solving the white cross while matching edge colours with the center pieces.";
-        }
-
-        return "Plan multiple white edges ahead to complete the cross efficiently.";
-
-        // =====================================================
-        // F2L
-        // =====================================================
-    case Stage::F2L:
-        if (rate < 0.5)
-        {
-            return "Find corner-edge pairs and bring them together above their slot.";
-        }
-
-        return "Insert paired corner and edge pieces into the correct slot efficiently.";
-
-        // =====================================================
-        // OLL
-        // =====================================================
-    case Stage::OLL:
-        if (rate < 0.5)
-        {
-            return "Focus on orienting yellow pieces on the top face.";
-        }
-
-        return "Use algorithms to orient all last layer pieces to make the top uniform.";
-
-        // =====================================================
-        // PLL
-        // =====================================================
-    case Stage::PLL:
-        return "Rearrange the last layer pieces to solve the cube completely.";
-
-        // =====================================================
-        // DEFAULT SAFETY
-        // =====================================================
-    default:
-        return "Keep going step by step. Focus on one layer at a time.";
-    }
-}
-
-// =====================================================
-// HINT SYSTEM (optional extension)
-// =====================================================
-std::string Guidance::generateHint(Stage stage, const Student& student)
-{
-    double rate = 0.0;
-
-    try
-    {
-        rate = student.getSuccessRate(stage);
-    }
-    catch (...)
-    {
-        rate = 0.0;
-    }
-
-    switch (stage)
-    {
-    case Stage::WHITE_CROSS:
-        return (rate < 0.5)
-            ? "Look for white edge pieces that match center colours."
-            : "Try solving two edges before reorienting the cube.";
+        if (support == 2)
+            return "1. Place the WHITE edge pieces around the YELLOW center. This will form a daisy shape.\n"
+                   "2. Look at the colours adjacent to the white edges. Align them witht their corresponding centre piece.\n"
+                   "3. For every edge matched with a centre, rotate that face twice.\n";
+        if (support == 1)
+            return "Match edge colors with center pieces.";
+        return "Plan multiple edges ahead.";
 
     case Stage::F2L:
-        return "Try lifting corner-edge pairs above their target slot.";
+        if (support == 2)
+            return "Pair corner and edge pieces above their slot.";
+        if (support == 1)
+            return "Insert pairs step-by-step into correct slots.";
+        return "Insert pairs efficiently into correct slots.";
 
     case Stage::OLL:
-        return "Check yellow pattern before applying algorithms.";
+        if (support == 2)
+            return "Orient yellow face pieces on top.";
+        if (support == 1)
+            return "Use basic algorithms to orient last layer.";
+        return "Execute OLL algorithms efficiently.";
 
     case Stage::PLL:
-        return "Identify which pieces are already in correct position.";
+        if (support == 2)
+            return "Permute last layer pieces step-by-step.";
+        return "Use PLL algorithms to finish the cube.";
+
+    case Stage::COMPLETE:
+        return "Cube solved.";
 
     default:
-        return "Focus on the current layer only.";
+        return "Focus on the current stage.";
     }
 }

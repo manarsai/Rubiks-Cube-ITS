@@ -16,12 +16,14 @@ class cubeView : public QOpenGLWidget, protected QOpenGLFunctions
     Q_OBJECT
 
 public:
-    explicit cubeView(Cube& cubeModel, QWidget* parent = nullptr);
-
-    // ? FIXED: string-based move input
-    void startMove(const std::string& move);
+    explicit cubeView(Cube& cubeModel, QWidget* parent = nullptr, bool idleMode = false);
 
     void setMoves(const std::vector<std::string>& moves);
+    void playMoves();
+
+    void setCubeState(const Cube& state);
+    void resetAnimation();
+
     void testMoves();
 
 protected:
@@ -29,25 +31,18 @@ protected:
     void resizeGL(int w, int h) override;
     void paintGL() override;
 
-    void mousePressEvent(QMouseEvent* event) override;
-    void mouseMoveEvent(QMouseEvent* event) override;
-    void mouseReleaseEvent(QMouseEvent* event) override;
+    void mousePressEvent(QMouseEvent*) override;
+    void mouseMoveEvent(QMouseEvent*) override;
+    void mouseReleaseEvent(QMouseEvent*) override;
 
 private:
-    Cube& cube;
+    // =========================
+    // MODEL
+    // =========================
+    Cube cube;
 
     // =========================
-    // Cubies
-    // =========================
-    struct Cubie
-    {
-        int x, y, z;
-    };
-
-    std::vector<Cubie> cubies;
-
-    // =========================
-    // Camera
+    // CAMERA
     // =========================
     float angleX = 0.0f;
     float angleY = 0.0f;
@@ -55,33 +50,43 @@ private:
     QPoint lastMousePos;
     bool dragging = false;
 
+    bool idleMode = false;
+
     // =========================
-    // Animation system
+    // CUBIES
+    // =========================
+    struct Cubie { int x, y, z; };
+    std::vector<Cubie> cubies;
+
+    // =========================
+    // ANIMATION
     // =========================
     struct ActiveMove
     {
-        std::string move;   // "R", "U'", etc.
+        std::string move;
         bool active = false;
         float angle = 0.0f;
         float speed = 90.0f;
     };
 
     ActiveMove currentMove;
-
     std::queue<std::string> moveQueue;
+
+    QTimer* timer;
 
     void startNextMove();
 
+    void applyMoveToModel(const std::string& mv);
+
     // =========================
-    // Rendering
+    // RENDER
     // =========================
     void drawAllCubies();
     void drawCubie(const Cubie& c, bool highlight = false);
     void drawCubeEdges();
 
     QColor convertColour(Colour c);
-
-    Colour safeAt(int face, int row, int col);
+    Colour safeAtModel(int face, int row, int col);
 };
 
 #endif

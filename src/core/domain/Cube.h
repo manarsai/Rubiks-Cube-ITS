@@ -44,9 +44,8 @@ public:
     // =========================
     // Moves
     // =========================
-  
-
     void applyMove(const Move& m);
+    void apply(const Move& m) { applyMove(m); }
 
     // =========================
     // Utility

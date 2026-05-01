@@ -47,6 +47,6 @@ private:
 
     std::map<Stage, StageStats> stats;
 
-    std::chrono::steady_clock::time_point startTime;
-    bool timerRunning = false;
+    std::map<Stage, std::chrono::steady_clock::time_point> startTimes;
+    std::map<Stage, bool> timerRunning;
 };

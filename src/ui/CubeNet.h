@@ -3,7 +3,6 @@
 #include <QWidget>
 #include <array>
 #include "../core/domain/Cube.h"
-#include "../core/domain/Colour.h"   // IMPORTANT (missing in your header)
 
 class CubeNet : public QWidget
 {
@@ -16,20 +15,18 @@ public:
 
 signals:
     void cubeChanged();
-    void scanCompleted();
 
 protected:
     void paintEvent(QPaintEvent* event) override;
-    void mousePressEvent(QMouseEvent* event) override;
-    void mouseMoveEvent(QMouseEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;   // ? FIX
+    void mouseMoveEvent(QMouseEvent* event) override;    // ? FIX
 
 private:
     Cube& cube;
-    Colour selectedColor = Colour::WHITE;
 
-    // =========================
-    // LAYOUT
-    // =========================
+    // =====================================================
+    // LAYOUT CACHE
+    // =====================================================
     struct Layout
     {
         int faceSize = 0;
@@ -39,17 +36,18 @@ private:
     };
 
     Layout layout;
+
     void updateLayout();
 
-    // =========================
-    // HOVER STATE
-    // =========================
-    int hoverFace = -1;
-    int hoverRow = -1;
-    int hoverCol = -1;
+    // =====================================================
+    // EDITING STATE (WAS MISSING)
+    // =====================================================
+    int hoverFace = -1;   // ? FIX
+    int hoverRow = -1;    // ? FIX
+    int hoverCol = -1;    // ? FIX
 
-    // =========================
-    // EDITING (MATCH CPP)
-    // =========================
-    void setColor(int face, int row, int col);
+    // =====================================================
+    // INTERNAL HELPERS
+    // =====================================================
+    void cycleColor(int face, int row, int col); // ? FIX (used in cpp)
 };

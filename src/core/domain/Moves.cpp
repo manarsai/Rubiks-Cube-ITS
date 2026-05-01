@@ -92,12 +92,13 @@ const Move B = [] {
 const Move D = [] {
     auto p = makeIdentity();
 
+    // reversed cycle direction
     addCycle(p, { 45, 51, 53, 47 });
     addCycle(p, { 46, 48, 52, 50 });
 
-    addCycle(p, { 24, 15, 42, 33 });
-    addCycle(p, { 25, 16, 43, 34 });
     addCycle(p, { 26, 17, 44, 35 });
+    addCycle(p, { 25, 16, 43, 34 });
+    addCycle(p, { 24, 15, 42, 33 });
 
     return Move{ p };
     }();
@@ -108,9 +109,9 @@ const Move L = [] {
     addCycle(p, { 9, 15, 17, 11 });
     addCycle(p, { 10, 12, 16, 14 });
 
-    addCycle(p, { 38, 45, 18, 0 });
+    addCycle(p, { 44, 45, 18, 0 });
     addCycle(p, { 41, 48, 21, 3 });
-    addCycle(p, { 44, 51, 24, 6 });
+    addCycle(p, { 38, 51, 24, 6 });
 
     return Move{ p };
     }();

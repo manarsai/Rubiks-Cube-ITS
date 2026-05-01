@@ -17,6 +17,13 @@ CubeNet::CubeNet(Cube& c, QWidget* parent)
     setFocusPolicy(Qt::StrongFocus);
 }
 
+QColor invertColor(const QColor& c)
+{
+    return QColor(255 - c.red(),
+        255 - c.green(),
+        255 - c.blue());
+}
+
 // =====================================================
 // LAYOUT
 // =====================================================
@@ -87,14 +94,16 @@ void CubeNet::paintEvent(QPaintEvent*)
                     painter.fillRect(rect, qcolor);
                     painter.drawRect(rect);
 
-                    // OPTIONAL: hover highlight
                     if (faceIndex == hoverFace &&
                         r == hoverRow &&
                         c == hoverCol)
                     {
-                        painter.setPen(QPen(Qt::cyan, 3));
+                        QColor highlight = invertColor(qcolor);
+
+                        painter.setPen(QPen(highlight, 7));
                         painter.drawRect(rect);
-                        painter.setPen(QPen(Qt::black, 2));
+
+                        painter.setPen(QPen(Qt::black, 2)); // restore default
                     }
                 }
             }
@@ -217,7 +226,7 @@ void CubeNet::mousePressEvent(QMouseEvent* event)
         if (col < 0 || col >= 3 || row < 0 || row >= 3)
             return;
 
-        setColor(f.index, row, col);
+        cycleColor(f.index, row, col);
         update();
         return;
     }
@@ -226,15 +235,28 @@ void CubeNet::mousePressEvent(QMouseEvent* event)
 // =====================================================
 // COLOR CYCLE
 // =====================================================
-void CubeNet::setColor(int face, int row, int col)
+void CubeNet::cycleColor(int face, int row, int col)
 {
     auto faceData = cube.getFace(face);
 
     int index = row * 3 + col;
-    faceData[index] = selectedColor;
 
+    Colour current = faceData[index];
+    Colour next;
+
+    switch (current)
+    {
+    case Colour::WHITE:  next = Colour::RED; break;
+    case Colour::RED:    next = Colour::BLUE; break;
+    case Colour::BLUE:   next = Colour::GREEN; break;
+    case Colour::GREEN:  next = Colour::YELLOW; break;
+    case Colour::YELLOW: next = Colour::ORANGE; break;
+    case Colour::ORANGE: next = Colour::WHITE; break;
+    default:             next = Colour::WHITE; break;
+    }
+
+    faceData[index] = next;
     cube.setFace(face, faceData);
-    emit cubeChanged();
 }
 
 // =====================================================
@@ -256,3 +278,4 @@ void CubeNet::setFaceColours(int faceIndex, const std::array<Colour, 9>& colors)
     cube.setFace(faceIndex, colors);
     update();
 }
+

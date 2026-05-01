@@ -1,7 +1,8 @@
 ﻿cmake_minimum_required(VERSION 3.16)
 project(RUBIKSCUBE_ITS)
 
-set(CMAKE_CXX_STANDARD 17)
+
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # =========================
@@ -21,26 +22,15 @@ find_package(OpenCV REQUIRED)
 find_package(SQLite3 REQUIRED)
 
 # =========================
-# SOURCE FILES (SAFE VERSION)
+# SOURCES
 # =========================
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/app/*.cpp
     ${CMAKE_SOURCE_DIR}/src/*.cpp
 )
 
-# ⚠️ DO NOT include headers in the executable
-# They are not compiled and only confuse the build system.
+add_executable(RUBIKSCUBE_ITS ${SOURCES})
 
-# =========================
-# EXECUTABLE
-# =========================
-add_executable(RUBIKSCUBE_ITS
-    ${SOURCES}
-)
-
-# =========================
-# LINK LIBRARIES
-# =========================
 target_link_libraries(RUBIKSCUBE_ITS PRIVATE
     Qt6::Core
     Qt6::Gui
@@ -51,14 +41,19 @@ target_link_libraries(RUBIKSCUBE_ITS PRIVATE
     SQLite::SQLite3
 )
 
-# =========================
-# INCLUDE DIRECTORIES
-# =========================
 target_include_directories(RUBIKSCUBE_ITS PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
 
-# =========================
-# CLEAN BUILD SAFETY FLAG
-# =========================
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# =========================
+# TESTING (THIS WAS MISSING)
+# =========================
+enable_testing()
+
+add_executable(unit_tests
+    tests/testing.cpp
+)
+
+add_test(NAME UnitTests COMMAND unit_tests)

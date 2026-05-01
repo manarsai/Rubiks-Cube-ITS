@@ -46,21 +46,39 @@ std::vector<QPixmap> StagePreviews::getStagePreviews(Stage stage)
         return {
             createFaceImage(" W "
                             "WWW"
-                            " W ")
+                            " W "),
+            createFaceImage("   "
+                            "   "
+                            "   "),
+            createFaceImage("   "
+                            "   "
+                            "   ")
         };
+
 
     case Stage::F2L:
         return {
+            createFaceImage("WWW"
+                            "WWW"
+                            "WWW"),
             createFaceImage("   "
-                            "RRR"
-                            "RRR")
+                            "   "
+                            "   "),
+            createFaceImage("OOO"
+                            "O O"
+                            "OOO")
         };
-
     case Stage::OLL:
         return {
-            createFaceImage(" Y "
-                            "YYY"
-                            " Y ")
+            createFaceImage("RRR"
+                            "R R"
+                            "RRR"),
+            createFaceImage("BBB"
+                            "B B"
+                            "BBB"),
+            createFaceImage("OOO"
+                            "O O"
+                            "OOO")
         };
 
     case Stage::PLL:
@@ -78,9 +96,15 @@ std::vector<QPixmap> StagePreviews::getStagePreviews(Stage stage)
 
     default:
         return {
-            createFaceImage("WWW"
-                            "WWW"
-                            "WWW")
+            createFaceImage("RRR"
+                            "R R"
+                            "RRR"),
+            createFaceImage("BBB"
+                            "B B"
+                            "BBB"),
+            createFaceImage("OOO"
+                            "O O"
+                            "OOO")
         };
     }
 }

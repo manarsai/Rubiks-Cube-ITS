@@ -8,6 +8,5 @@ class StagePreviews
 {
 public:
     static QPixmap createFaceImage(const QString& face);
-
     static std::vector<QPixmap> getStagePreviews(Stage stage);
 };

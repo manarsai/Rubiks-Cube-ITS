@@ -38,12 +38,10 @@ void Database::log(const std::string& msg)
 // =========================
 // OPEN / CLOSE
 // =========================
-
 void Database::open()
 {
     QString dbDir = "C:/finalyearproject/RUBIKSCUBE_ITS/src/data";
 
-    // ensure folder exists
     QDir dir(dbDir);
     if (!dir.exists())
         dir.mkpath(".");
@@ -93,8 +91,7 @@ Database::StmtPtr Database::prepare(const std::string& sql)
     if (rc != SQLITE_OK)
     {
         std::cout << "SQL PREPARE FAILED: "
-            << sqlite3_errmsg(db_.get())
-            << std::endl;
+            << sqlite3_errmsg(db_.get()) << std::endl;
 
         std::cout << "QUERY: " << sql << std::endl;
 
@@ -122,7 +119,6 @@ void Database::initTables()
             current_face INTEGER,
             cube_state TEXT,
             stage INTEGER,
-            instruction TEXT,
             solver_mode INTEGER
         );
 
@@ -154,12 +150,10 @@ void Database::setUserName(const std::string& name)
 
     sqlite3_bind_text(stmt.get(), 1, name.c_str(), -1, SQLITE_TRANSIENT);
 
-    int rc = sqlite3_step(stmt.get());
-
-    if (rc != SQLITE_DONE)
+    if (sqlite3_step(stmt.get()) != SQLITE_DONE)
     {
-        std::cout << "SQLITE ERROR: " << sqlite3_errmsg(db_.get()) << std::endl;
-        return;
+        std::cout << "SQLITE ERROR: "
+            << sqlite3_errmsg(db_.get()) << std::endl;
     }
 }
 
@@ -170,15 +164,16 @@ std::optional<std::string> Database::getUserName()
     if (sqlite3_step(stmt.get()) == SQLITE_ROW)
     {
         const unsigned char* txt = sqlite3_column_text(stmt.get(), 0);
-        return txt ? reinterpret_cast<const char*>(txt) : "";
+        return txt ? std::string(reinterpret_cast<const char*>(txt)) : "";
     }
 
     return std::nullopt;
 }
 
-// =========================
+// =====================================================
 // SESSION SAVE (STRUCT)
-// =========================
+// NOTE: instruction is STORED but NOT USED by UI anymore
+// =====================================================
 void Database::saveSession(const Session& s)
 {
     begin();
@@ -186,21 +181,19 @@ void Database::saveSession(const Session& s)
     try
     {
         auto stmt = prepare(R"(
-            INSERT INTO session (id, current_face, cube_state, stage, instruction, solver_mode)
-            VALUES (1, ?, ?, ?, ?, ?)
+            INSERT INTO session (id, current_face, cube_state, stage, solver_mode)
+            VALUES (1, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 current_face=excluded.current_face,
                 cube_state=excluded.cube_state,
                 stage=excluded.stage,
-                instruction=excluded.instruction,
                 solver_mode=excluded.solver_mode;
         )");
 
         sqlite3_bind_int(stmt.get(), 1, s.face);
         sqlite3_bind_text(stmt.get(), 2, s.cubeState.c_str(), -1, SQLITE_TRANSIENT);
         sqlite3_bind_int(stmt.get(), 3, s.stage);
-        sqlite3_bind_text(stmt.get(), 4, s.instruction.c_str(), -1, SQLITE_TRANSIENT);
-        sqlite3_bind_int(stmt.get(), 5, s.solverMode);
+        sqlite3_bind_int(stmt.get(), 4, s.solverMode);
 
         sqlite3_step(stmt.get());
 
@@ -214,19 +207,17 @@ void Database::saveSession(const Session& s)
 }
 
 // =========================
-// SESSION SAVE (UI FRIENDLY)
+// SESSION SAVE (UI FRIENDLY - CLEAN)
 // =========================
 void Database::saveSession(int face,
     const std::string& cubeState,
     int stage,
-    const std::string& instruction,
     bool solverMode)
 {
     Session s;
     s.face = face;
     s.cubeState = cubeState;
     s.stage = stage;
-    s.instruction = instruction;
     s.solverMode = solverMode;
 
     saveSession(s);
@@ -238,11 +229,10 @@ void Database::saveSession(int face,
 bool Database::loadSession(int& face,
     std::string& cubeState,
     int& stage,
-    std::string& instruction,
     bool& solverMode)
 {
     auto stmt = prepare(R"(
-        SELECT current_face, cube_state, stage, instruction, solver_mode
+        SELECT current_face, cube_state, stage, solver_mode
         FROM session WHERE id = 1;
     )");
 
@@ -255,11 +245,7 @@ bool Database::loadSession(int& face,
     cubeState = state ? reinterpret_cast<const char*>(state) : "";
 
     stage = sqlite3_column_int(stmt.get(), 2);
-
-    const unsigned char* instr = sqlite3_column_text(stmt.get(), 3);
-    instruction = instr ? reinterpret_cast<const char*>(instr) : "";
-
-    solverMode = sqlite3_column_int(stmt.get(), 4) != 0;
+    solverMode = sqlite3_column_int(stmt.get(), 3) != 0;
 
     return true;
 }
@@ -280,4 +266,3 @@ void Database::resetSession()
 {
     exec("DELETE FROM session WHERE id = 1;");
 }
-

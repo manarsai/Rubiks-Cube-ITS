@@ -15,11 +15,16 @@ public:
     struct TutorResult
     {
         int stageValue;
-        std::string message;        // ? VALUE (not reference)
+        std::string message;
         std::string instructionText;
     };
 
     TutorResult CheckSubmission(const Cube& cube, ScanType type);
+
+    // =====================================================
+    // FIX: expose expected stage to UI / AppController
+    // =====================================================
+    Stage getExpectedStage() const;
 
 private:
     Stage expectedStage;
@@ -27,5 +32,4 @@ private:
     Student& student;
 
     Tutor engine;
-    Guidance generator;
 };

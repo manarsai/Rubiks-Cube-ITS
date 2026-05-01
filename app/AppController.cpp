@@ -5,9 +5,6 @@
 
 #include <iostream>
 
-// =========================
-// INIT
-// =========================
 AppController::AppController()
     : student("Guest"),
     tutorController(student),
@@ -18,39 +15,38 @@ AppController::AppController()
     cube.reset();
 }
 
-// =========================
-// SCAN PROCESS
-// =========================
+// =====================================================
+// MAIN SCAN PROCESS
+// =====================================================
 AppController::ScanResult AppController::processScan(
     const std::array<Colour, 9>& face)
 {
     ScanResult result;
 
-    std::cout << "\n---- SCAN START ----\n";
-    std::cout << "Current face index: " << currentFace << "\n";
-
-    // =====================================================
-    // 0. STATE SAFETY
-    // =====================================================
+    // =====================================
+    // BLOCK IF SCAN ALREADY COMPLETE
+    // =====================================
     if (scanComplete)
     {
         result.success = false;
-        result.message = "Scan complete. Reset to scan again.";
+        result.message = "Scan complete. Please start a new scan.";
         return result;
     }
 
+    // =====================================
+    // SAFETY CHECK
+    // =====================================
     if (currentFace < 0 || currentFace > 5)
     {
         result.success = false;
-        result.message = "Invalid scan state. Reset required.";
-        currentFace = 0;
-        scanComplete = false;
+        result.message = "Invalid scan state. Resetting.";
+        resetScan();
         return result;
     }
 
-    // =====================================================
-    // 1. EMPTY SCAN CHECK
-    // =====================================================
+    // =====================================
+    // CHECK FOR EMPTY SCAN
+    // =====================================
     bool hasData = false;
     for (Colour c : face)
     {
@@ -68,9 +64,9 @@ AppController::ScanResult AppController::processScan(
         return result;
     }
 
-    // =====================================================
-    // 2. QUALITY CHECK
-    // =====================================================
+    // =====================================
+    // VALIDATE SCAN QUALITY
+    // =====================================
     if (!Validator::isScanSafe(face))
     {
         result.success = false;
@@ -78,17 +74,15 @@ AppController::ScanResult AppController::processScan(
         return result;
     }
 
-    // =====================================================
-    // 3. STORE FACE
-    // =====================================================
+    // =====================================
+    // STORE FACE
+    // =====================================
     cube.setFace(currentFace, face);
-    std::cout << "Face stored: " << currentFace << "\n";
-
     currentFace++;
 
-    // =====================================================
-    // 4. PARTIAL SCAN
-    // =====================================================
+    // =====================================
+    // NOT FINISHED SCANNING
+    // =====================================
     if (currentFace < 6)
     {
         result.success = true;
@@ -98,126 +92,105 @@ AppController::ScanResult AppController::processScan(
         return result;
     }
 
-    std::cout << "All 6 faces scanned. Validating cube...\n";
-
-    // =====================================================
-    // 5. FULL VALIDATION
-    // =====================================================
-    if (!Validator::isCubeComplete(cube))
+    // =====================================
+    // FINAL VALIDATION
+    // =====================================
+    if (!Validator::isCubeComplete(cube) || !Validator::isValidCube(cube))
     {
         result.success = false;
-        result.message = "Incomplete cube scan.";
-
-        currentFace = 0;
-        scanComplete = false;
+        result.message = "Invalid cube scan. Please rescan.";
+        resetCube(); // ?? FULL RESET (important)
         return result;
     }
 
-    if (!Validator::isValidCube(cube))
-    {
-        result.success = false;
-        result.message = "Invalid cube configuration.";
-
-        currentFace = 0;
-        scanComplete = false;
-        return result;
-    }
-
-    std::cout << "Cube valid. Passing to Tutor...\n";
-
-    // =====================================================
-    // 6. TUTOR
-    // =====================================================
-    TutorController::TutorResult tutorResult =
+    // =====================================
+    // TUTOR (SOURCE OF TRUTH)
+    // =====================================
+    auto tutorResult =
         tutorController.CheckSubmission(cube, ScanType::SUBMIT);
 
-    std::cout << "Tutor stage: " << tutorResult.stageValue << "\n";
+    Stage expectedStage = tutorController.getExpectedStage();
 
-    // =====================================================
-    // 7. SOLVER (RECOVERY ONLY)
-    // =====================================================
+    std::cout << "Expected stage: " << (int)expectedStage << "\n";
+
+    result.success = true;
+    result.finished = true;
+    result.stageValue = tutorResult.stageValue;
+    result.message = tutorResult.message;
+    result.guidance = tutorResult.instructionText;
+
+    // =====================================
+    // SOLVER (FIXED: USE COPY)
+    // =====================================
     result.moves.clear();
 
-    if (solverMode && result.finished)
+    if (solverMode)
     {
         std::cout << "Running recovery solver...\n";
-        result.moves = solver.recover(cube);
-        std::cout << "Moves: " << result.moves.size() << "\n";
+
+        Cube temp = cube;                 // ? COPY (CRITICAL FIX)
+        result.moves = solver.recover(temp);
     }
     else
     {
         std::cout << "Solver skipped (normal mode)\n";
     }
 
-    // =====================================================
-    // 8. OUTPUT
-    // =====================================================
-    result.success = true;
-    result.finished = true;
-    result.stageValue = tutorResult.stageValue;
-
-    result.message = tutorResult.message;
-    result.guidance = tutorResult.instructionText;
-
-    // =====================================================
-    // 9. FINALIZE STATE (SAFE)
-    // =====================================================
-    if (result.success)
-        scanComplete = true;
-
-    std::cout << "---- SCAN END ----\n";
+    // =====================================
+    // MARK COMPLETE
+    // =====================================
+    scanComplete = true;
 
     return result;
 }
 
-// =========================
-// RESET SCAN
-// =========================
+// =====================================================
+// RESET SCAN ONLY (keeps cube)
+// =====================================================
 void AppController::resetScan()
 {
     currentFace = 0;
     scanComplete = false;
 }
 
-// =========================
-// RESET CUBE
-// =========================
+// =====================================================
+// RESET EVERYTHING
+// =====================================================
 void AppController::resetCube()
 {
-    cube.reset();
+    cube.reset();          // must fully clear all faces
     currentFace = 0;
     scanComplete = false;
 }
 
-// =========================
+// =====================================================
 // ACCESS
-// =========================
+// =====================================================
 Cube& AppController::getCube()
 {
     return cube;
 }
 
-// =========================
+// =====================================================
 // LOAD STATE
-// =========================
+// =====================================================
 void AppController::loadState(const std::string& state)
 {
     cube.deserialize(state);
-    currentFace = 0;
-    scanComplete = false;
+    resetScan(); // ? ensures fresh scan state
 }
 
-// =========================
+// =====================================================
 // VALIDATION
-// =========================
+// =====================================================
 bool AppController::isCubeValid() const
 {
     return cube.isValidCube();
 }
 
-// =========================
+// =====================================================
 // SOLVER MODE
-// =========================
+// =====================================================
 void AppController::setSolverMode(bool mode)
 {
     solverMode = mode;
@@ -226,4 +199,22 @@ void AppController::setSolverMode(bool mode)
 bool AppController::isSolverMode() const
 {
     return solverMode;
+}
+
+// =====================================================
+// STUDENT ACCESS
+// =====================================================
+Student& AppController::getStudent()
+{
+    return student;
+}
+
+const Student& AppController::getStudent() const
+{
+    return student;
+}
+
+Stage AppController::getExpectedStage() const
+{
+    return tutorController.getExpectedStage();
 }

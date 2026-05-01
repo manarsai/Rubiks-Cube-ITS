@@ -7,7 +7,8 @@
 #include <string>
 
 #include "../../app/AppController.h"
-#include "../core/domain/Solver.h"   // ? FIXED
+#include "../core/domain/Solver.h"
+#include "../core/domain/StageDefinitions.h"
 
 // =========================
 // FORWARD DECLARATIONS
@@ -21,12 +22,11 @@ class QProgressBar;
 class CameraWidget;
 class cubeView;
 class CubeNet;
-class AppController;
 
 // =========================
-// STAGE SYSTEM
+// STAGE HELPER (IMPORTANT)
 // =========================
-#include "../core/domain/StageDefinitions.h"
+static Stage getNextStage(Stage current);
 
 class MainWindow : public QMainWindow
 {
@@ -70,13 +70,9 @@ private:
     // =========================
     // STATE
     // =========================
-    int currentFace = 0;
-    int currentStage = 0;
+    int scanStep = 0;
 
-    std::string currentInstruction;
     std::vector<std::string> lastSolution;
-
-    bool solverMode = false;
 
     // =========================
     // CAMERA
@@ -117,12 +113,21 @@ private:
     void setupCameraScreen();
     void setupConnections();
 
+    // =========================
+    // HELPERS
+    // =========================
+    QString getScanInstruction(int step);
     void updatePreviews(Stage stage);
-    void completeScanAndSolve();
 
     // =========================
     // LOGIC
     // =========================
     void handleScan();
+    void completeScanAndSolve();
+
+    // =========================
+    // RESETS
+    // =========================
     void resetScan();
+    void resetUI();
 };

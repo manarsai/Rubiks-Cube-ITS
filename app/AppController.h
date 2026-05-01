@@ -18,57 +18,60 @@ class AppController
 public:
     AppController();
 
-    // =====================================================
-    // RESULT RETURNED TO UI
-    // =====================================================
     struct ScanResult
     {
         bool success = false;
         bool finished = false;
         int stageValue = 0;
 
-        std::vector<std::string> moves;  // solver output only
+        std::vector<std::string> moves;
 
-        std::string message;   // system / error text
-        std::string guidance;  // user-facing instructions
+        std::string message;
+        std::string guidance;
     };
 
-    // =====================================================
-    // MAIN PIPELINE ENTRY POINT
-    // =====================================================
+    // =========================
+    // STUDENT
+    // =========================
+    Student& getStudent();
+    const Student& getStudent() const;
+
+    // =========================
+    // FIX 1: TUTOR ACCESS
+    // =========================
+    Stage getExpectedStage() const;
+
+    // =========================
+    // PIPELINE
+    // =========================
     ScanResult processScan(const std::array<Colour, 9>& face);
 
-    // =====================================================
-    // STATE CONTROL
-    // =====================================================
+    // =========================
+    // STATE
+    // =========================
     void resetScan();
     void resetCube();
     void loadState(const std::string& state);
 
-    // =====================================================
-    // ACCESS
-    // =====================================================
+    // =========================
+    // CUBE
+    // =========================
     Cube& getCube();
+    const Cube& getCube() const;
     bool isCubeValid() const;
 
-    // =====================================================
-    // SOLVER MODE
-    // =====================================================
+    // =========================
+    // SOLVER
+    // =========================
     void setSolverMode(bool mode);
     bool isSolverMode() const;
 
 private:
-    // =====================================================
-    // CORE DOMAIN OBJECTS
-    // =====================================================
     Cube cube;
     Solver solver;
     Student student;
     TutorController tutorController;
 
-    // =====================================================
-    // SCAN STATE
-    // =====================================================
     int currentFace = 0;
     bool scanComplete = false;
     bool solverMode = false;

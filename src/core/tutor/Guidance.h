@@ -50,6 +50,6 @@ SETINSTRUCTION
 class Guidance
 {
 public:
-    std::string generate(Stage stage, const Student& student);
-    std::string generateHint(Stage stage, const Student& student);
+    static std::string generate(Stage stage, const Student& student);
+    static std::string generateHint(Stage stage, const Student& student);
 };
